@@ -31,16 +31,19 @@ namespace FindIFBot.Services.Admin
 
         public async Task HandleCallbackAsync(CallbackQuery cb)
         {
-            if (cb.From.Id != _adminId) return;
+            if (cb.From.Id != _adminId) 
+                return;
 
             var parts = cb.Data?.Split('|');
-            if (parts == null || parts.Length < 3) return;
+            if (parts == null || parts.Length < 3)
+                return;
 
             var action = parts[0];
             var userId = long.Parse(parts[1]);
             var messageId = int.Parse(parts[2]);
 
-            if (!_messages.TryGet(messageId, out var stored)) return;
+            if (!_messages.TryGet(messageId, out var stored)) 
+                return;
 
             switch (action)
             {
@@ -190,18 +193,18 @@ namespace FindIFBot.Services.Admin
                 new[]
                 {
                     InlineKeyboardButton.WithCallbackData(
-                        "Approve",
+                        "Approve post",
                         $"+find|{msg.From!.Id}|{msg.MessageId}"
                     ),
                     InlineKeyboardButton.WithCallbackData(
-                        "Decline",
+                        "Decline post",
                         $"-find|{msg.From.Id}|{msg.MessageId}"
                     )
                 },
                 new[]
                 {
                     InlineKeyboardButton.WithCallbackData(
-                        "Duplicate",
+                        "Duplicated post",
                         $"?find|{msg.From.Id}|{msg.MessageId}"
                     )
                 }
@@ -213,11 +216,11 @@ namespace FindIFBot.Services.Admin
                 new[]
                 {
                     InlineKeyboardButton.WithCallbackData(
-                        "Approve",
+                        "Approve ads",
                         $"+ads|{msg.From!.Id}|{msg.MessageId}"
                     ),
                     InlineKeyboardButton.WithCallbackData(
-                        "Decline",
+                        "Decline ads",
                         $"-ads|{msg.From.Id}|{msg.MessageId}"
                     )
                 }
