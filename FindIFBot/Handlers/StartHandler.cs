@@ -1,12 +1,22 @@
 ﻿using FindIFBot.Helpers;
+using FindIFBot.Persistence;
+using System.Collections.Generic;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
+using Telegram.Bot.Types.ReplyMarkups;
 
 namespace FindIFBot.Handlers
 {
     public class StartHandler : IStartHandler
     {
+        private readonly IUserRequestHistoryRepository _history;
+
+        public StartHandler(IUserRequestHistoryRepository history)
+        {
+            _history = history;
+        }
+
         public async Task HandleAsync(
         ITelegramBotClient bot,
         Message message)
@@ -17,10 +27,15 @@ namespace FindIFBot.Handlers
                 parseMode: ParseMode.Markdown
             );
 
+            var userId = message.From!.Id;
+            var hasHistory = _history.GetByUserId(userId).Any();
+
+            var markup = Keyboards.GetKeyboard(hasHistory);
+
             await bot.SendMessage(
                 message.Chat.Id,
                 "Оберіть опцію, якою хочете скористатись у нашому боті.",
-                replyMarkup: Keyboards.DefaultMarkup()
+                replyMarkup: markup
             );
         }
     }

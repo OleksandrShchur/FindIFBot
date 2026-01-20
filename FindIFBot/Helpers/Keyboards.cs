@@ -1,18 +1,25 @@
-﻿using Telegram.Bot.Types.ReplyMarkups;
+﻿using System.Collections.Generic;
+using Telegram.Bot.Types.ReplyMarkups;
 
 namespace FindIFBot.Helpers
 {
     public static class Keyboards
     {
-        public static ReplyKeyboardMarkup DefaultMarkup()
+        public static ReplyKeyboardMarkup GetKeyboard(bool hasHistory)
         {
-            return new ReplyKeyboardMarkup(new[]
+            var keyboard = new List<KeyboardButton[]>
             {
-            new KeyboardButton[] { "Розпочати пошук", /*"Розмістити рекламу"*/ },
-            //new KeyboardButton[] { "Правила розміщення реклами" },
-            new KeyboardButton[] { /*"Підтримати нас",*/ "Довідка" },
-            //new KeyboardButton[] { "Запропонувати покращення" }
-        })
+                new KeyboardButton[] { "Розпочати пошук" }
+            };
+
+            if (hasHistory)
+            {
+                keyboard.Add(new KeyboardButton[] { "Історія запитів" });
+            }
+
+            keyboard.Add(new KeyboardButton[] { "Довідка" });
+
+            return new ReplyKeyboardMarkup(keyboard)
             {
                 ResizeKeyboard = true,
                 OneTimeKeyboard = false
