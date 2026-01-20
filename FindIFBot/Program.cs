@@ -20,9 +20,11 @@ builder.Services.AddSingleton<ITelegramBotClient>(sp =>
 builder.Services.AddScoped<ICommandDispatcher, CommandDispatcher>();
 builder.Services.AddSingleton<IUserSessionRepository, InMemoryUserSessionRepository>();
 builder.Services.AddSingleton<IMessageStore, InMemoryMessageStore>();
+builder.Services.AddSingleton<IUserRequestHistoryRepository, InMemoryUserRequestHistoryRepository>();
 builder.Services.AddScoped<IAdminWorkflowService, AdminWorkflowService>();
 builder.Services.AddSingleton<IAdsPricingService, AdsPricingService>();
 builder.Services.AddScoped<IStartHandler, StartHandler>();
+builder.Services.AddScoped<IHistoryHandler, HistoryHandler>();
 
 builder.Services.AddOpenApi();
 

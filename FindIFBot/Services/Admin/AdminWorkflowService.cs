@@ -13,6 +13,7 @@ namespace FindIFBot.Services.Admin
         private readonly IMessageStore _messages;
         private readonly IAdsPricingService _pricing;
         private readonly IUserSessionRepository _sessions;
+        private readonly IUserRequestHistoryRepository _history;
         private readonly long _adminId;
         private readonly string _outputChannel;
         private readonly string _channelLink;
@@ -22,12 +23,14 @@ namespace FindIFBot.Services.Admin
             IMessageStore messages,
             IAdsPricingService pricing,
             IUserSessionRepository sessions,
+            IUserRequestHistoryRepository history,
             IConfiguration config)
         {
             _bot = bot;
             _messages = messages;
             _pricing = pricing;
             _sessions = sessions;
+            _history = history;
 
             long.TryParse(config["Telegram:AdminId"], out _adminId);
             _outputChannel = config["Telegram:UserOutputChannel"] ?? string.Empty;
@@ -88,6 +91,7 @@ namespace FindIFBot.Services.Admin
                     var session = _sessions.Get(userId);
                     session.State = UserState.Idle;
                     _sessions.Save(session);
+                    await CleanupAsync(cb, messageId);
                     return;
 
                 case "cancel":
@@ -104,8 +108,19 @@ namespace FindIFBot.Services.Admin
             await _bot.SendMessage(
                 stored.ChatId,
                 "Очікуйте на публікацію. Триває модерація.",
-                replyMarkup: Keyboards.DefaultMarkup()
+                replyMarkup: Keyboards.GetKeyboard(true)
             );
+
+            var request = new UserRequest
+            {
+                Id = Guid.NewGuid(),
+                UserId = stored.UserId,
+                StoredMessage = stored,
+                Status = RequestStatus.Pending,
+                SubmittedAt = DateTime.UtcNow,
+                UserMessageId = stored.MessageId
+            };
+            _history.Add(request);
 
             await SendToAdmin(stored, stored.MessageId);
         }
@@ -118,8 +133,19 @@ namespace FindIFBot.Services.Admin
             await _bot.SendMessage(
                 message.Chat.Id,
                 "Матеріал передано адміністраторам.",
-                replyMarkup: Keyboards.DefaultMarkup()
+                replyMarkup: Keyboards.GetKeyboard(true)
             );
+
+            var request = new UserRequest
+            {
+                Id = Guid.NewGuid(),
+                UserId = stored.UserId,
+                StoredMessage = stored,
+                Status = RequestStatus.Pending,
+                SubmittedAt = DateTime.UtcNow,
+                UserMessageId = stored.MessageId
+            };
+            _history.Add(request);
 
             var keyboard = BuildAdsKeyboard(message);
 
@@ -143,6 +169,7 @@ namespace FindIFBot.Services.Admin
 
         private async Task PublishAsync(long userId, StoredMessage stored)
         {
+            string channelLink;
             if (stored.Photos.Count > 0)
             {
                 var media = stored.Photos
@@ -153,18 +180,32 @@ namespace FindIFBot.Services.Admin
                     .ToArray();
                 var result = await _bot.SendMediaGroup(_outputChannel, media);
                 var postId = result.First().MessageId; // Better for album links
+                channelLink = $"{_channelLink}/{postId}";
                 await _bot.SendMessage(
                     userId,
-                    $"Ваш пост опубліковано: {_channelLink}/{postId}"
+                    $"Ваш пост опубліковано: {channelLink}",
+                    replyMarkup: Keyboards.GetKeyboard(_history.GetByUserId(userId).Any())
                 );
             }
             else
             {
                 var result = await _bot.SendMessage(_outputChannel, stored.Text ?? "(no text)");
+                channelLink = $"{_channelLink}/{result.MessageId}";
                 await _bot.SendMessage(
                     userId,
-                    $"Ваш пост опубліковано: {_channelLink}/{result.MessageId}"
+                    $"Ваш пост опубліковано: {channelLink}",
+                    replyMarkup: Keyboards.GetKeyboard(_history.GetByUserId(userId).Any())
                 );
+            }
+
+            // Update history
+            var requests = _history.GetByUserId(userId);
+            var request = requests.FirstOrDefault(r => r.UserMessageId == stored.MessageId && r.Status == RequestStatus.Pending);
+            if (request != null)
+            {
+                request.Status = RequestStatus.Approved;
+                request.ChannelLink = channelLink;
+                _history.Update(request);
             }
         }
 
@@ -174,8 +215,17 @@ namespace FindIFBot.Services.Admin
                 userId,
                 "Запит на публікацію відхилено.",
                 replyParameters: new ReplyParameters { MessageId = messageId },
-                replyMarkup: Keyboards.DefaultMarkup()
+                replyMarkup: Keyboards.GetKeyboard(_history.GetByUserId(userId).Any())
             );
+
+            // Update history
+            var requests = _history.GetByUserId(userId);
+            var request = requests.FirstOrDefault(r => r.UserMessageId == messageId && r.Status == RequestStatus.Pending);
+            if (request != null)
+            {
+                request.Status = RequestStatus.Rejected;
+                _history.Update(request);
+            }
         }
 
         private async Task DuplicateAsync(long userId, int messageId)
@@ -184,8 +234,17 @@ namespace FindIFBot.Services.Admin
                 userId,
                 "Схожий запит вже опубліковано. Скористайтесь пошуком у каналі.",
                 replyParameters: new ReplyParameters { MessageId = messageId },
-                replyMarkup: Keyboards.DefaultMarkup()
+                replyMarkup: Keyboards.GetKeyboard(_history.GetByUserId(userId).Any())
             );
+
+            // Update history
+            var requests = _history.GetByUserId(userId);
+            var request = requests.FirstOrDefault(r => r.UserMessageId == messageId && r.Status == RequestStatus.Pending);
+            if (request != null)
+            {
+                request.Status = RequestStatus.Duplicate;
+                _history.Update(request);
+            }
         }
 
         private async Task ApproveAdsAsync(long userId, int messageId, StoredMessage stored)
@@ -300,7 +359,7 @@ namespace FindIFBot.Services.Admin
                 userId,
                 "Публікацію скасовано.",
                 replyParameters: new ReplyParameters { MessageId = messageId },
-                replyMarkup: Keyboards.DefaultMarkup()
+                replyMarkup: Keyboards.GetKeyboard(_history.GetByUserId(userId).Any())
             );
             var session = _sessions.Get(userId);
             session.State = UserState.Idle;

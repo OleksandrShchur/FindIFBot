@@ -16,6 +16,8 @@ namespace FindIFBot.Services
         private readonly IMessageStore _messages;
         private readonly IAdminWorkflowService _admin;
         private readonly IStartHandler _startHandler;
+        private readonly IHistoryHandler _historyHandler;
+        private readonly IUserRequestHistoryRepository _history;
         private static readonly Dictionary<string, List<Message>> _mediaBuffer = new();
         private static readonly object _lock = new();
 
@@ -24,13 +26,17 @@ namespace FindIFBot.Services
             IUserSessionRepository sessions,
             IMessageStore messages,
             IAdminWorkflowService admin,
-            IStartHandler startHandler)
+            IStartHandler startHandler,
+            IHistoryHandler historyHandler,
+            IUserRequestHistoryRepository history)
         {
             _bot = bot;
             _sessions = sessions;
             _messages = messages;
             _admin = admin;
             _startHandler = startHandler;
+            _historyHandler = historyHandler;
+            _history = history;
         }
 
         public async Task DispatchAsync(Update update)
@@ -100,6 +106,8 @@ namespace FindIFBot.Services
                                  ?? orderedMessages[0];
 
             var chatId = captionMessage.Chat.Id;
+            var userId = captionMessage.From!.Id;
+            var hasHistory = _history.GetByUserId(userId).Any();
 
             // Безпечний збір тільки фото
             var photos = orderedMessages
@@ -121,7 +129,7 @@ namespace FindIFBot.Services
                     await _bot.SendMessage(
                         chatId,
                         "Помилка: забагато фотографій (максимум 10 в одному альбомі). Будь ласка, надішліть менше.",
-                        replyMarkup: Keyboards.DefaultMarkup()
+                        replyMarkup: Keyboards.GetKeyboard(hasHistory)
                     );
                     session.State = UserState.Idle;
                     _sessions.Save(session);
@@ -135,7 +143,7 @@ namespace FindIFBot.Services
                         chatId,
                         $"Увага: з {totalMediaCount} елементів альбому оброблено тільки {photos.Count} фото. " +
                         $"Відео, гіфки та інші медіа ігноруються.",
-                        replyMarkup: Keyboards.DefaultMarkup()
+                        replyMarkup: Keyboards.GetKeyboard(hasHistory)
                     );
                 }
 
@@ -145,15 +153,13 @@ namespace FindIFBot.Services
                     await _bot.SendMessage(
                         chatId,
                         "Помилка: в альбомі немає фото. Надішліть альбом з фотографіями.",
-                        replyMarkup: Keyboards.DefaultMarkup()
+                        replyMarkup: Keyboards.GetKeyboard(hasHistory)
                     );
                     session.State = UserState.Idle;
                     _sessions.Save(session);
                     return;
                 }
             }
-
-            var userId = captionMessage.From!.Id;
 
             var stored = new StoredMessage(
                 ChatId: chatId,
@@ -182,6 +188,7 @@ namespace FindIFBot.Services
         private async Task HandleSingleMessageAsync(Message message, UserSession session)
         {
             var userId = message.From?.Id ?? message.Chat.Id;
+            var hasHistory = _history.GetByUserId(userId).Any();
 
             var text = message.Text?.Trim() ?? message.Caption?.Trim();
 
@@ -214,7 +221,7 @@ namespace FindIFBot.Services
                     await _bot.SendMessage(
                         message.Chat.Id,
                         "Помилка: надіслано не фото (відео, документ тощо). Підтримуємо тільки фотографії.",
-                        replyMarkup: Keyboards.DefaultMarkup()
+                        replyMarkup: Keyboards.GetKeyboard(hasHistory)
                     );
                     session.State = UserState.Idle;
                     _sessions.Save(session);
@@ -289,15 +296,26 @@ namespace FindIFBot.Services
 
         private async Task HandleAdviceAsync(Message message)
         {
+            var userId = message.From!.Id;
+            var hasHistory = _history.GetByUserId(userId).Any();
             await _bot.SendMessage(
                 message.Chat.Id,
                 "Дякуємо за вашу ідею. Ми її опрацюємо.",
-                replyMarkup: Keyboards.DefaultMarkup()
+                replyMarkup: Keyboards.GetKeyboard(hasHistory)
             );
         }
 
         private async Task HandleStatelessCommandAsync(Message message, string normalized)
         {
+            var userId = message.From!.Id;
+            var hasHistory = _history.GetByUserId(userId).Any();
+
+            if (normalized == "історія запитів")
+            {
+                await _historyHandler.HandleAsync(_bot, message);
+                return;
+            }
+
             ICommandHandler handler = normalized switch
             {
                 "/help" or "довідка" => new HelpHandler(),
@@ -308,7 +326,7 @@ namespace FindIFBot.Services
             await _bot.SendMessage(
                 message.Chat.Id,
                 handler.Handle(),
-                replyMarkup: Keyboards.DefaultMarkup()
+                replyMarkup: Keyboards.GetKeyboard(hasHistory)
             );
         }
 
