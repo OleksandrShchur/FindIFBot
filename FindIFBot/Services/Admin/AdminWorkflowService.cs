@@ -122,7 +122,15 @@ namespace FindIFBot.Services.Admin
                     var session = _sessions.Get(userId);
                     session.State = UserState.Idle;
                     _sessions.Save(session);
-                    await CleanupAsync(cb, messageId);
+
+                    // Delete only the confirmation message (inline keyboard) in user's chat
+                    // Do NOT remove from _messages store – it must remain for admin moderation
+                    try
+                    {
+                        await _bot.DeleteMessage(cb.Message!.Chat.Id, cb.Message.MessageId);
+                    }
+                    catch { }
+
                     return;
                 case "cancel":
                     _logger.Log(Component, LogType.Info, $"User cancelled submission | UserId: {userId} | MessageId: {messageId}");
@@ -156,7 +164,9 @@ namespace FindIFBot.Services.Admin
             };
 
             _history.Add(request);
-            _messages.Store(stored.MessageId, stored);
+
+            // Removed redundant _messages.Store – message is already stored when content was received
+            // and we no longer remove it prematurely in "proceed"
 
             await SendToAdmin(stored, stored.MessageId);
         }
