@@ -101,9 +101,6 @@ namespace FindIFBot.Services.Admin
 
         public async Task SubmitFindAsync(StoredMessage stored)
         {
-            if (!_messages.TryGet(message.MessageId, out var stored))
-                return;
-
             await _bot.SendMessage(
                 stored.ChatId,
                 "Очікуйте на публікацію. Триває модерація.",
