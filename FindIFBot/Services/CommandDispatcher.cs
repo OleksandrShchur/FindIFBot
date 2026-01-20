@@ -85,6 +85,7 @@ namespace FindIFBot.Services
                         await HandleMediaGroupAsync(group, currentSession);
                     });
                 }
+
                 return;
             }
 
@@ -109,7 +110,8 @@ namespace FindIFBot.Services
             var totalMediaCount = orderedMessages.Count;
             var ignoredCount = totalMediaCount - photos.Count;
 
-            bool isSubmissionState = session.State == UserState.WaitingForFindQuery || session.State == UserState.WaitingForAdContent;
+            bool isSubmissionState = session.State == UserState.WaitingForFindQuery 
+                || session.State == UserState.WaitingForAdContent;
 
             if (isSubmissionState)
             {
@@ -131,7 +133,8 @@ namespace FindIFBot.Services
                 {
                     await _bot.SendMessage(
                         chatId,
-                        $"Увага: з {totalMediaCount} елементів альбому оброблено тільки {photos.Count} фото. Відео, гіфки та інші медіа ігноруються.",
+                        $"Увага: з {totalMediaCount} елементів альбому оброблено тільки {photos.Count} фото. " +
+                        $"Відео, гіфки та інші медіа ігноруються.",
                         replyMarkup: Keyboards.DefaultMarkup()
                     );
                 }
@@ -157,7 +160,8 @@ namespace FindIFBot.Services
                 UserId: userId,
                 Text: captionMessage.Caption,
                 Photos: photos,
-                MediaGroupId: captionMessage.MediaGroupId
+                MediaGroupId: captionMessage.MediaGroupId,
+                MessageId: captionMessage.MessageId
             );
 
             _messages.Store(captionMessage.MessageId, stored);
@@ -165,9 +169,7 @@ namespace FindIFBot.Services
             switch (session.State)
             {
                 case UserState.WaitingForFindQuery:
-                    await _admin.SubmitFindAsync(captionMessage);
-                    session.State = UserState.Idle;
-                    _sessions.Save(session);
+                    await PrepareFindConfirmationAsync(captionMessage, session);
                     break;
                 case UserState.WaitingForAdContent:
                     await _admin.SubmitAdAsync(captionMessage);
@@ -192,7 +194,8 @@ namespace FindIFBot.Services
                 userId,
                 text,
                 photos,
-                message.MediaGroupId
+                message.MediaGroupId,
+                message.MessageId
             );
 
             _messages.Store(message.MessageId, stored);
@@ -231,9 +234,8 @@ namespace FindIFBot.Services
             switch (session.State)
             {
                 case UserState.WaitingForFindQuery:
-                    await _admin.SubmitFindAsync(message);
-                    session.State = UserState.Idle;
-                    _sessions.Save(session);
+                    await PrepareFindConfirmationAsync(message, session);
+
                     return;
                 case UserState.WaitingForAdContent:
                     await _admin.SubmitAdAsync(message);
@@ -278,13 +280,13 @@ namespace FindIFBot.Services
                     new IdeasHandler().Handle(),
                     replyMarkup: new ReplyKeyboardRemove()
                 );
+
                 return;
             }
 
             await HandleStatelessCommandAsync(message, normalized);
         }
 
-        // Решта методів без змін...
         private async Task HandleAdviceAsync(Message message)
         {
             await _bot.SendMessage(
@@ -316,6 +318,43 @@ namespace FindIFBot.Services
             normalized == "/ads" || normalized == "розмістити рекламу";
         private static bool IsAdviceCommand(string normalized) =>
             normalized == "/advice" || normalized == "запропонувати покращення";
+
+        private async Task PrepareFindConfirmationAsync(Message message, UserSession session)
+        {
+            if (!_messages.TryGet(message.MessageId, out var stored))
+                return;
+
+            // Send the final message to user
+            if (stored.Photos.Count > 0)
+            {
+                var media = stored.Photos
+                    .Select((id, i) => new InputMediaPhoto(id)
+                    {
+                        Caption = i == 0 ? stored.Text : null
+                    })
+                    .ToArray();
+                await _bot.SendMediaGroup(message.Chat.Id, media);
+            }
+            else
+            {
+                await _bot.SendMessage(message.Chat.Id, stored.Text ?? "(no text)");
+            }
+
+            // Send confirmation buttons
+            var keyboard = new InlineKeyboardMarkup(new[]
+            {
+                new[]
+                {
+                    InlineKeyboardButton.WithCallbackData("Надіслати", $"proceed|{message.From!.Id}|{message.MessageId}"),
+                    InlineKeyboardButton.WithCallbackData("Скасувати", $"cancel|{message.From!.Id}|{message.MessageId}")
+                }
+            });
+            await _bot.SendMessage(message.Chat.Id, "Надіслати запит з повідомлення на перегляд адмінам?", replyMarkup: keyboard);
+
+            // Set state
+            session.State = UserState.ConfirmFindContent;
+            _sessions.Save(session);
+        }
 
         private static string MediaKey(long userId, string mediaGroupId) =>
             $"{userId}:{mediaGroupId}";

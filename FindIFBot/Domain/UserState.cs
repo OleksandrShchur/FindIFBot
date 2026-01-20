@@ -5,6 +5,8 @@
         Idle,
         WaitingForFindQuery,
         WaitingForAdContent,
-        WaitingForAdvice
+        WaitingForAdvice,
+        ConfirmFindContent,
+        ConfirmAdContent
     }
 }

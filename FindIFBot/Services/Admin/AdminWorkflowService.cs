@@ -1,4 +1,5 @@
-﻿using FindIFBot.Helpers;
+﻿using FindIFBot.Domain;
+using FindIFBot.Helpers;
 using FindIFBot.Persistence;
 using Telegram.Bot;
 using Telegram.Bot.Types;
@@ -11,6 +12,7 @@ namespace FindIFBot.Services.Admin
         private readonly ITelegramBotClient _bot;
         private readonly IMessageStore _messages;
         private readonly IAdsPricingService _pricing;
+        private readonly IUserSessionRepository _sessions;
         private readonly long _adminId;
         private readonly string _outputChannel;
         private readonly string _channelLink;
@@ -19,11 +21,13 @@ namespace FindIFBot.Services.Admin
             ITelegramBotClient bot,
             IMessageStore messages,
             IAdsPricingService pricing,
+            IUserSessionRepository sessions,
             IConfiguration config)
         {
             _bot = bot;
             _messages = messages;
             _pricing = pricing;
+            _sessions = sessions;
 
             long.TryParse(config["Telegram:AdminId"], out _adminId);
             _outputChannel = config["Telegram:UserOutputChannel"] ?? string.Empty;
@@ -32,8 +36,8 @@ namespace FindIFBot.Services.Admin
 
         public async Task HandleCallbackAsync(CallbackQuery cb)
         {
-            //if (cb.From.Id != _adminId)
-            //    return;
+            if (cb.From.Id != _adminId) // callback from me as a user to me as an admin
+                return;
 
             var parts = cb.Data?.Split('|');
             if (parts == null || parts.Length < 3)
@@ -42,6 +46,9 @@ namespace FindIFBot.Services.Admin
             var action = parts[0];
             var userId = long.Parse(parts[1]);
             var messageId = int.Parse(parts[2]);
+
+            if (!(action == "proceed" || action == "cancel") && cb.From.Id != _adminId)
+                return;
 
             if (!_messages.TryGet(messageId, out var stored))
                 return;
@@ -75,23 +82,35 @@ namespace FindIFBot.Services.Admin
                 case "<money":
                     await InsufficientMoneyAsync(userId, messageId);
                     return;
+
+                case "proceed":
+                    await SubmitFindAsync(stored);
+                    var session = _sessions.Get(userId);
+                    session.State = UserState.Idle;
+                    _sessions.Save(session);
+                    return;
+
+                case "cancel":
+                    await CancelFindAsync(userId, messageId);
+                    await CleanupAsync(cb, messageId);
+                    return;
             }
 
             await CleanupAsync(cb, messageId);
         }
 
-        public async Task SubmitFindAsync(Message message)
+        public async Task SubmitFindAsync(StoredMessage stored)
         {
             if (!_messages.TryGet(message.MessageId, out var stored))
                 return;
 
             await _bot.SendMessage(
-                message.Chat.Id,
+                stored.ChatId,
                 "Очікуйте на публікацію. Триває модерація.",
                 replyMarkup: Keyboards.DefaultMarkup()
             );
 
-            await SendToAdmin(stored, message.MessageId);
+            await SendToAdmin(stored, stored.MessageId);
         }
 
         public async Task SubmitAdAsync(Message message)
@@ -156,7 +175,7 @@ namespace FindIFBot.Services.Admin
         {
             await _bot.SendMessage(
                 userId,
-                "Запит на публікацію скасовано.",
+                "Запит на публікацію відхилено.",
                 replyParameters: new ReplyParameters { MessageId = messageId },
                 replyMarkup: Keyboards.DefaultMarkup()
             );
@@ -191,6 +210,7 @@ namespace FindIFBot.Services.Admin
                     "No full sum",
                     $"<money|{userId}|{messageId}") }
             });
+
             // Fixed message instead of redundant stored.Text
             await _bot.SendMessage(
                 _adminId,
@@ -276,5 +296,18 @@ namespace FindIFBot.Services.Admin
                     )
                 }
             });
+
+        private async Task CancelFindAsync(long userId, int messageId)
+        {
+            await _bot.SendMessage(
+                userId,
+                "Публікацію скасовано.",
+                replyParameters: new ReplyParameters { MessageId = messageId },
+                replyMarkup: Keyboards.DefaultMarkup()
+            );
+            var session = _sessions.Get(userId);
+            session.State = UserState.Idle;
+            _sessions.Save(session);
+        }
     }
 }

@@ -5,7 +5,8 @@
         long UserId,
         string? Text,                 // text or caption
         IReadOnlyList<string> Photos, // FileIds, empty if none
-        string? MediaGroupId          // null if single message
+        string? MediaGroupId,         // null if single message
+        int MessageId                 // Telegram message ID
     )
     {
         public bool HasPhotos => Photos.Count > 0;
