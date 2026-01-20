@@ -38,7 +38,6 @@ namespace FindIFBot.Services
             if (update.CallbackQuery != null)
             {
                 await _admin.HandleCallbackAsync(update.CallbackQuery);
-
                 return;
             }
             if (update.Message != null)
@@ -229,7 +228,6 @@ namespace FindIFBot.Services
                 session.State = UserState.Idle;
                 _sessions.Save(session);
                 await _startHandler.HandleAsync(_bot, message);
-
                 return;
             }
 
@@ -239,19 +237,15 @@ namespace FindIFBot.Services
                     await PrepareFindConfirmationAsync(message, session);
 
                     return;
-
                 case UserState.WaitingForAdContent:
                     await _admin.SubmitAdAsync(message);
                     session.State = UserState.Idle;
                     _sessions.Save(session);
-
                     return;
-
                 case UserState.WaitingForAdvice:
                     await HandleAdviceAsync(message);
                     session.State = UserState.Idle;
                     _sessions.Save(session);
-
                     return;
             }
 
@@ -264,7 +258,6 @@ namespace FindIFBot.Services
                     new FindHandler().Handle(),
                     replyMarkup: new ReplyKeyboardRemove()
                 );
-
                 return;
             }
             if (IsAdsCommand(normalized))
@@ -276,7 +269,6 @@ namespace FindIFBot.Services
                     new AdsHandler().Handle(),
                     replyMarkup: new ReplyKeyboardRemove()
                 );
-
                 return;
             }
             if (IsAdviceCommand(normalized))
@@ -353,11 +345,11 @@ namespace FindIFBot.Services
             {
                 new[]
                 {
-                    InlineKeyboardButton.WithCallbackData("Proceed", $"proceed|{message.From!.Id}|{message.MessageId}"),
-                    InlineKeyboardButton.WithCallbackData("Cancel", $"cancel|{message.From!.Id}|{message.MessageId}")
+                    InlineKeyboardButton.WithCallbackData("Надіслати", $"proceed|{message.From!.Id}|{message.MessageId}"),
+                    InlineKeyboardButton.WithCallbackData("Скасувати", $"cancel|{message.From!.Id}|{message.MessageId}")
                 }
             });
-            await _bot.SendMessage(message.Chat.Id, "Confirm publication:", replyMarkup: keyboard);
+            await _bot.SendMessage(message.Chat.Id, "Надіслати запит з повідомлення на перегляд адмінам?", replyMarkup: keyboard);
 
             // Set state
             session.State = UserState.ConfirmFindContent;
