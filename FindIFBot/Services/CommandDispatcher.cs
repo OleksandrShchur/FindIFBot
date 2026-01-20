@@ -155,6 +155,13 @@ namespace FindIFBot.Services
                 {
                     _logger.Log(Component, LogType.Warning,
                         $"Ignored non-photo media in album | UserId: {userId} | Ignored: {ignoredCount} | Total: {totalMediaCount}");
+
+                    await _bot.SendMessage(
+                        chatId,
+                        $"Увага: з {totalMediaCount} елементів альбому оброблено тільки {photos.Count} фото. " +
+                        $"Відео, гіфки та інші медіа ігноруються.",
+                        replyMarkup: Keyboards.GetKeyboard(hasHistory)
+                    );
                 }
 
                 if (photos.Count == 0)
