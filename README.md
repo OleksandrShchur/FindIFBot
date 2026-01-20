@@ -38,6 +38,8 @@ Update the webhook URL to match the ngrok public address:
     "WebhookUrl": "https://<ngrok-id>.ngrok-free.app/api/telegram/webhook"
   }
 }
+```
+
 Ensure the local application is configured to run over HTTP on port 5199.
 
 Running Locally
