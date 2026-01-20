@@ -46,35 +46,37 @@ Running Locally
 1. Start ngrok
 Run in Command Prompt:
 
-ngrok http 5199
-Copy the generated https://*.ngrok-free.app URL.
+```ngrok http 5199```
+Copy the generated 
+```https://*.ngrok-free.app``` URL.
 
 2. Register Telegram Webhook
 Run in PowerShell:
-
+```
 Invoke-WebRequest `
   -Method Post `
   -Uri "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook" `
   -Body @{ url = "https://<ngrok-id>.ngrok-free.app/api/telegram/webhook" }
+```
 Replace:
 
-<YOUR_BOT_TOKEN> with the real bot token
+`<YOUR_BOT_TOKEN>` with the real bot token
 
-<ngrok-id> with the active ngrok subdomain
+`<ngrok-id>` with the active ngrok subdomain
 
 3. Update Configuration
-Replace the ngrok URL in appsettings.json with the same value used in setWebhook.
+Replace the ngrok URL in `appsettings.json` with the same value used in setWebhook.
 
 4. Run the Application
 Start the application in HTTP mode:
 
-dotnet run
+```dotnet run```
 The bot is now reachable by Telegram through the ngrok tunnel.
 
 Webhook Endpoint
-Route: /api/telegram/webhook
+Route: `/api/telegram/webhook`
 
-Method: POST
+Method: `POST`
 
 Source: Telegram servers only
 
