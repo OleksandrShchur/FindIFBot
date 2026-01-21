@@ -1,9 +1,9 @@
-using FindIFBot.Domain;
 using FindIFBot.Persistence;
-using System.Collections.Generic;
-using System.Linq;
+using FindIFBot.Utils;
 using Telegram.Bot;
+using Telegram.Bot.Exceptions;
 using Telegram.Bot.Types;
+using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
 
 namespace FindIFBot.Handlers
@@ -11,7 +11,6 @@ namespace FindIFBot.Handlers
     public class HistoryHandler : IHistoryHandler
     {
         private readonly IUserRequestHistoryRepository _history;
-
         public HistoryHandler(IUserRequestHistoryRepository history)
         {
             _history = history;
@@ -20,71 +19,129 @@ namespace FindIFBot.Handlers
         public async Task HandleAsync(ITelegramBotClient bot, Message message)
         {
             var userId = message.From!.Id;
-            var requests = _history.GetByUserId(userId);
+            var chatId = message.Chat.Id;
 
-            if (!requests.Any())
+            var allRequests = _history.GetByUserId(userId);
+
+            if (!allRequests.Any())
             {
                 var initialMarkup = BuildMarkup(userId);
                 await bot.SendMessage(
-                    message.Chat.Id,
+                    chatId,
                     "У вас немає історії запитів.",
                     replyMarkup: initialMarkup
                 );
                 return;
             }
 
-            var approved = requests.Where(r => r.Status == Domain.RequestStatus.Approved).OrderByDescending(r => r.SubmittedAt).ToList();
-            var pending = requests.Where(r => r.Status == Domain.RequestStatus.Pending).OrderByDescending(r => r.SubmittedAt).ToList();
+            var approved = allRequests
+                .Where(r => r.Status == Domain.RequestStatus.Approved)
+                .OrderByDescending(r => r.SubmittedAt)
+                .ToList();
 
-            var text = "";
+            var pending = allRequests
+                .Where(r => r.Status == Domain.RequestStatus.Pending)
+                .OrderByDescending(r => r.SubmittedAt)
+                .ToList();
 
+            var markup = BuildMarkup(userId);
+
+            string approvedText = "";
             if (approved.Any())
             {
-                text += "✅ Затверджені запити:\n";
+                approvedText = "✅ Затверджені запити:\n\n";
                 foreach (var req in approved)
                 {
-                    text += $"{req.StoredMessage.Text ?? "Без тексту"}\n";
+                    approvedText += $"<code>{TextUtils.GetTextPreview(req.StoredMessage.Text) ?? "Без тексту"}</code>\n";
                     if (!string.IsNullOrEmpty(req.ChannelLink))
                     {
-                        text += $"Посилання: {req.ChannelLink}\n";
+                        approvedText += $"Посилання: {req.ChannelLink}\n";
                     }
-                    text += "\n";
+                    approvedText += "\n";
                 }
+                approvedText = approvedText.TrimEnd();
             }
+
+            var pendingText = "";
+            var pendingMessageIds = new List<int>();
 
             if (pending.Any())
             {
-                text += "⏳ Запити на модерації:\n";
+                pendingText = "⏳ Запити на модерації:\n\n";
+
                 foreach (var req in pending)
                 {
-                    text += $"{req.StoredMessage.Text ?? "Без тексту"}\n";
-                    // For pending, perhaps show message id or something
-                    text += $"ID повідомлення: {req.UserMessageId}\n\n";
+                    var itemText = $"<code>{TextUtils.GetTextPreview(req.StoredMessage.Text) ?? "Без тексту"}</code>\n";
+
+                    itemText += $"- ID запиту: {req.UserMessageId}\n";
+                    pendingMessageIds.Add(req.UserMessageId);
+
+                    itemText += "\n";
+                    pendingText += itemText;
                 }
+
+                pendingText = pendingText.TrimEnd();
             }
 
-            var markup = BuildMarkup(userId);
-            await bot.SendMessage(
-                message.Chat.Id,
-                text.Trim(),
-                replyMarkup: markup
-            );
+            if (!string.IsNullOrEmpty(approvedText))
+            {
+                var replyMarkupForApproved = string.IsNullOrEmpty(pendingText) ? markup : null;
+                await bot.SendMessage(
+                    chatId,
+                    approvedText,
+                    replyMarkup: replyMarkupForApproved,
+                    parseMode: ParseMode.Html
+                );
+            }
+
+            if (!string.IsNullOrEmpty(pendingText))
+            {
+                await bot.SendMessage(
+                    chatId,
+                    pendingText,
+                    replyMarkup: markup,
+                    parseMode: ParseMode.Html
+                );
+            }
+
+            foreach (var replyId in pendingMessageIds)
+            {
+                try
+                {
+                    await bot.SendMessage(
+                        chatId: chatId,
+                        text: $"⏳ Запит <code>{replyId}</code> очікує модерації",
+                        replyParameters: new ReplyParameters()
+                        {
+                            MessageId = replyId
+                        },
+                        parseMode: ParseMode.Html
+                    );
+                }
+                catch (ApiRequestException ex) when (
+                    ex.ErrorCode == 400 &&
+                    ex.Message?.Contains("reply message not found") == true)
+                {
+                    await bot.SendMessage(
+                        chatId: chatId,
+                        text: $"⏳ Запит <code>{replyId}</code> очікує модерації. (Оригінальне повідомлення видалено).",
+                        parseMode: ParseMode.Html
+                    );
+                }
+            }
         }
 
         private ReplyKeyboardMarkup BuildMarkup(long userId)
         {
             var hasHistory = _history.GetByUserId(userId).Any();
-
             var keyboard = new List<KeyboardButton[]>
             {
                 new KeyboardButton[] { "Розпочати пошук" }
             };
-
             if (hasHistory)
             {
                 keyboard.Add(new KeyboardButton[] { "Історія запитів" });
             }
-
             keyboard.Add(new KeyboardButton[] { "Довідка" });
 
             return new ReplyKeyboardMarkup(keyboard)

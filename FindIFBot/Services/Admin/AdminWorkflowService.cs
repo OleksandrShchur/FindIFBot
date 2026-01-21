@@ -2,8 +2,10 @@
 using FindIFBot.Helpers;
 using FindIFBot.Helpers.Logs;
 using FindIFBot.Persistence;
+using FindIFBot.Utils;
 using Telegram.Bot;
 using Telegram.Bot.Types;
+using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
 
 namespace FindIFBot.Services.Admin
@@ -165,9 +167,6 @@ namespace FindIFBot.Services.Admin
 
             _history.Add(request);
 
-            // Removed redundant _messages.Store – message is already stored when content was received
-            // and we no longer remove it prematurely in "proceed"
-
             await SendToAdmin(stored, stored.MessageId);
         }
 
@@ -222,8 +221,9 @@ namespace FindIFBot.Services.Admin
 
         private async Task PublishAsync(long userId, StoredMessage stored)
         {
-            string channelLink = "";
-            int postId = 0;
+            var channelLink = string.Empty;
+            var postId = 0;
+            var postText = string.Empty;
 
             if (stored.Photos.Count > 0)
             {
@@ -231,11 +231,13 @@ namespace FindIFBot.Services.Admin
                     .Select((id, i) => new InputMediaPhoto(id) { Caption = i == 0 ? stored.Text : null })
                     .ToArray();
                 var result = await _bot.SendMediaGroup(_outputChannel, media);
+                postText = TextUtils.GetTextPreview(result.First().Caption);
                 postId = result.First().MessageId;
             }
             else
             {
                 var result = await _bot.SendMessage(_outputChannel, stored.Text ?? "(no text)");
+                postText = TextUtils.GetTextPreview(result.Text);
                 postId = result.MessageId;
             }
 
@@ -243,8 +245,9 @@ namespace FindIFBot.Services.Admin
 
             await _bot.SendMessage(
                 userId,
-                $"Ваш пост опубліковано: {channelLink}",
-                replyMarkup: Keyboards.GetKeyboard(_history.GetByUserId(userId).Any())
+                $"Ваш пост опубліковано: <a href=\"{channelLink}\">{postText}</a>",
+                replyMarkup: Keyboards.GetKeyboard(_history.GetByUserId(userId).Any()),
+                parseMode: ParseMode.Html
             );
 
             _logger.Log(Component, LogType.Info,
@@ -320,8 +323,9 @@ namespace FindIFBot.Services.Admin
 
             await _bot.SendMessage(
                 userId,
-                $"Ціна публікації — {price} грн.",
-                replyParameters: new ReplyParameters { MessageId = messageId }
+                $"Ціна публікації — <code>{price}</code> грн.",
+                replyParameters: new ReplyParameters { MessageId = messageId },
+                parseMode: ParseMode.Html
             );
 
             var keyboard = new InlineKeyboardMarkup(new[]
@@ -332,8 +336,9 @@ namespace FindIFBot.Services.Admin
 
             await _bot.SendMessage(
                 _adminId,
-                $"Реклама схвалена. Ціна: {price} грн. Очікуємо оплату для публікації.",
-                replyMarkup: keyboard
+                $"Реклама схвалена. Ціна: <code>{price}</code> грн. Очікуємо оплату для публікації.",
+                replyMarkup: keyboard,
+                parseMode: ParseMode.Html
             );
         }
 

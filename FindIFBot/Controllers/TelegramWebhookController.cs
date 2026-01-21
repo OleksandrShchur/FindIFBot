@@ -25,5 +25,11 @@ namespace FindIFBot.Controllers
 
             return Ok();
         }
+
+        [HttpGet]
+        public IActionResult Get()
+        {
+            return Ok("Telegram Webhook is running.");
+        }
     }
 }
