@@ -295,8 +295,7 @@ namespace FindIFBot.Services.Admin
                 userId,
                 "Схожий запит вже опубліковано. Скористайтесь пошуком у каналі.",
                 replyParameters: new ReplyParameters { MessageId = messageId },
-                replyMarkup: Keyboards.GetKeyboard(_history.GetByUserId(userId).Any()),
-                parseMode: ParseMode.MarkdownV2
+                replyMarkup: Keyboards.GetKeyboard(_history.GetByUserId(userId).Any())
             );
 
             _logger.Log(Component, LogType.Info, $"Request marked as duplicate | UserId: {userId} | MessageId: {messageId}");
@@ -324,9 +323,9 @@ namespace FindIFBot.Services.Admin
 
             await _bot.SendMessage(
                 userId,
-                $"Ціна публікації — `{price}` грн.",
+                $"Ціна публікації — <code>{price}</code> грн.",
                 replyParameters: new ReplyParameters { MessageId = messageId },
-                parseMode: ParseMode.MarkdownV2
+                parseMode: ParseMode.Html
             );
 
             var keyboard = new InlineKeyboardMarkup(new[]
@@ -337,9 +336,9 @@ namespace FindIFBot.Services.Admin
 
             await _bot.SendMessage(
                 _adminId,
-                $"Реклама схвалена. Ціна: `{price}` грн. Очікуємо оплату для публікації.",
+                $"Реклама схвалена. Ціна: <code>{price}</code> грн. Очікуємо оплату для публікації.",
                 replyMarkup: keyboard,
-                parseMode: ParseMode.MarkdownV2
+                parseMode: ParseMode.Html
             );
         }
 

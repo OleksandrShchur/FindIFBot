@@ -1,5 +1,5 @@
-using FindIFBot.Domain;
 using FindIFBot.Persistence;
+using FindIFBot.Utils;
 using Telegram.Bot;
 using Telegram.Bot.Exceptions;
 using Telegram.Bot.Types;
@@ -52,7 +52,7 @@ namespace FindIFBot.Handlers
                 approvedText = "✅ Затверджені запити:\n\n";
                 foreach (var req in approved)
                 {
-                    approvedText += $"{req.StoredMessage.Text ?? "Без тексту"}\n";
+                    approvedText += $"<code>{TextUtils.GetTextPreview(req.StoredMessage.Text) ?? "Без тексту"}</code>\n";
                     if (!string.IsNullOrEmpty(req.ChannelLink))
                     {
                         approvedText += $"Посилання: {req.ChannelLink}\n";
@@ -63,7 +63,7 @@ namespace FindIFBot.Handlers
             }
 
             var pendingText = "";
-            var pendingMessageToReply = new List<ReplyHistoryMessage>();
+            var pendingMessageIds = new List<int>();
 
             if (pending.Any())
             {
@@ -71,44 +71,10 @@ namespace FindIFBot.Handlers
 
                 foreach (var req in pending)
                 {
-                    var itemText = $"```{req.StoredMessage.Text ?? "Без тексту"}```\n";
-                    itemText += $"ID запиту: {req.UserMessageId}\n";
+                    var itemText = $"<code>{TextUtils.GetTextPreview(req.StoredMessage.Text) ?? "Без тексту"}</code>\n";
 
-                    //bool isDeleted = false;
-                    //try
-                    //{
-                    //    var replyMessage = new ReplyHistoryMessage()
-                    //    {
-                    //        MessageId = (int)req.UserMessageId,
-                    //    };
-
-                    //    //await bot.SendMessage(
-                    //    //    chatId: chatId,
-                    //    //    text: $"⏳ Запит {req.UserMessageId} очікує модерації",
-                    //    //    replyParameters: new ReplyParameters()
-                    //    //    {
-                    //    //        MessageId = (int)req.UserMessageId
-                    //    //    }
-                    //    //);
-                    //}
-                    //catch (ApiRequestException ex) when (
-                    //    ex.ErrorCode == 400 &&
-                    //    ex.Message?.Contains("reply message not found") == true)
-                    //{
-                    //    isDeleted = true;
-                    //}
-
-                    //if (isDeleted)
-                    //{
-                    //    itemText += "(Оригінальне повідомлення видалено)\n";
-                    //}
-
-                    var replyMessage = new ReplyHistoryMessage()
-                    {
-                        MessageId = (int)req.UserMessageId,
-                    };
-                    pendingMessageToReply.Add(replyMessage);
-
+                    itemText += $"- ID запиту: {req.UserMessageId}\n";
+                    pendingMessageIds.Add(req.UserMessageId);
 
                     itemText += "\n";
                     pendingText += itemText;
@@ -124,7 +90,7 @@ namespace FindIFBot.Handlers
                     chatId,
                     approvedText,
                     replyMarkup: replyMarkupForApproved,
-                    parseMode: ParseMode.MarkdownV2
+                    parseMode: ParseMode.Html
                 );
             }
 
@@ -134,22 +100,22 @@ namespace FindIFBot.Handlers
                     chatId,
                     pendingText,
                     replyMarkup: markup,
-                    parseMode: ParseMode.MarkdownV2
+                    parseMode: ParseMode.Html
                 );
             }
 
-            foreach (var replyMsg in pendingMessageToReply)
+            foreach (var replyId in pendingMessageIds)
             {
                 try
                 {
                     await bot.SendMessage(
                         chatId: chatId,
-                        text: $"⏳ Запит `{replyMsg.MessageId}` очікує модерації",
+                        text: $"⏳ Запит <code>{replyId}</code> очікує модерації",
                         replyParameters: new ReplyParameters()
                         {
-                            MessageId = (int)replyMsg.MessageId
+                            MessageId = replyId
                         },
-                        parseMode: ParseMode.MarkdownV2
+                        parseMode: ParseMode.Html
                     );
                 }
                 catch (ApiRequestException ex) when (
@@ -158,8 +124,8 @@ namespace FindIFBot.Handlers
                 {
                     await bot.SendMessage(
                         chatId: chatId,
-                        text: $"⏳ Запит {replyMsg.MessageId} очікує модерації. (Оригінальне повідомлення видалено).",
-                        parseMode: ParseMode.MarkdownV2
+                        text: $"⏳ Запит <code>{replyId}</code> очікує модерації. (Оригінальне повідомлення видалено).",
+                        parseMode: ParseMode.Html
                     );
                 }
             }
@@ -177,6 +143,7 @@ namespace FindIFBot.Handlers
                 keyboard.Add(new KeyboardButton[] { "Історія запитів" });
             }
             keyboard.Add(new KeyboardButton[] { "Довідка" });
+
             return new ReplyKeyboardMarkup(keyboard)
             {
                 ResizeKeyboard = true,

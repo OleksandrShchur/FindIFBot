@@ -144,9 +144,9 @@ namespace FindIFBot.Services
 
                     await _bot.SendMessage(
                         chatId,
-                        "*Помилка*: забагато фотографій (*максимум 10* в одному запиті). Будь ласка, надішліть менше.",
+                        "<b>Помилка</b>: забагато фотографій (<b>максимум 10</b> в одному запиті). Будь ласка, надішліть менше.",
                         replyMarkup: Keyboards.GetKeyboard(hasHistory),
-                        parseMode: ParseMode.MarkdownV2
+                        parseMode: ParseMode.Html
                     );
                     session.State = UserState.Idle;
                     _sessions.Save(session);
@@ -160,10 +160,10 @@ namespace FindIFBot.Services
 
                     await _bot.SendMessage(
                         chatId,
-                        $"*Увага*: з {totalMediaCount} елементів альбому оброблено тільки {photos.Count} фото. " +
-                        $"Відео, гіфки та інші медіа *ігноруються*.",
+                        $"<b>Увага</b>: з {totalMediaCount} елементів альбому оброблено тільки {photos.Count} фото. " +
+                        $"Відео, гіфки та інші медіа <b>ігноруються</b>.",
                         replyMarkup: Keyboards.GetKeyboard(hasHistory),
-                        parseMode: ParseMode.MarkdownV2
+                        parseMode: ParseMode.Html
                     );
                 }
 
@@ -174,9 +174,9 @@ namespace FindIFBot.Services
 
                     await _bot.SendMessage(
                         chatId,
-                        "*Помилка*: в альбомі немає фото. Надішліть альбом з фотографіями.",
+                        "<b>Помилка</b>: в альбомі немає фото. Надішліть альбом з фотографіями.",
                         replyMarkup: Keyboards.GetKeyboard(hasHistory),
-                        parseMode: ParseMode.MarkdownV2
+                        parseMode: ParseMode.Html
                     );
                     session.State = UserState.Idle;
                     _sessions.Save(session);
@@ -253,9 +253,9 @@ namespace FindIFBot.Services
 
                     await _bot.SendMessage(
                         message.Chat.Id,
-                        "*Помилка*: надіслано не фото (відео, документ тощо). Підтримуємо тільки фотографії.",
+                        "<b>Помилка</b>: надіслано не фото (відео, документ тощо). Підтримуємо тільки фотографії.",
                         replyMarkup: Keyboards.GetKeyboard(hasHistory),
-                        parseMode: ParseMode.MarkdownV2
+                        parseMode: ParseMode.Html
                     );
                     session.State = UserState.Idle;
                     _sessions.Save(session);
@@ -312,7 +312,7 @@ namespace FindIFBot.Services
                     message.Chat.Id,
                     new AdsHandler().Handle(),
                     replyMarkup: new ReplyKeyboardRemove(),
-                    parseMode: ParseMode.MarkdownV2
+                    parseMode: ParseMode.Html
                 );
                 return;
             }
@@ -325,7 +325,7 @@ namespace FindIFBot.Services
                     message.Chat.Id,
                     new IdeasHandler().Handle(),
                     replyMarkup: new ReplyKeyboardRemove(),
-                    parseMode: ParseMode.MarkdownV2
+                    parseMode: ParseMode.Html
                 );
                 return;
             }
@@ -343,8 +343,7 @@ namespace FindIFBot.Services
             await _bot.SendMessage(
                 message.Chat.Id,
                 "Дякуємо за вашу ідею! Ми її опрацюємо.",
-                replyMarkup: Keyboards.GetKeyboard(hasHistory),
-                parseMode: ParseMode.MarkdownV2
+                replyMarkup: Keyboards.GetKeyboard(hasHistory)
             );
         }
 
@@ -353,7 +352,7 @@ namespace FindIFBot.Services
             var userId = message.From!.Id;
             var hasHistory = _history.GetByUserId(userId).Any();
 
-            if (normalized == "історія запитів")
+            if (normalized == "історія запитів" || normalized == "/history")
             {
                 await _historyHandler.HandleAsync(_bot, message);
                 return;
@@ -373,7 +372,7 @@ namespace FindIFBot.Services
                 message.Chat.Id,
                 handler.Handle(),
                 replyMarkup: Keyboards.GetKeyboard(hasHistory),
-                parseMode: ParseMode.MarkdownV2
+                parseMode: ParseMode.Html
             );
         }
 
