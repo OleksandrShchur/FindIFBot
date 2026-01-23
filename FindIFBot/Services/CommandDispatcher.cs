@@ -1,4 +1,6 @@
 ﻿using FindIFBot.Domain;
+using FindIFBot.EF.Entities;
+using FindIFBot.EF.Repositories;
 using FindIFBot.Handlers;
 using FindIFBot.Helpers;
 using FindIFBot.Helpers.Logs;
