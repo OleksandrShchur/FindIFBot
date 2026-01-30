@@ -242,10 +242,6 @@ namespace FindIFBot.Services
             }
         }
 
-        // ────────────────────────────────────────────────────────────────────────────────
-        // The methods below remain completely unchanged
-        // ────────────────────────────────────────────────────────────────────────────────
-
         private async Task HandleSingleMessageAsync(Message message, UserSession session)
         {
             var userId = message.From?.Id ?? message.Chat.Id;

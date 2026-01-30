@@ -26,7 +26,7 @@ namespace FindIFBot.Handlers
             );
 
             var userId = message.From!.Id;
-            var hasHistory = (await _history.GetByUserId(userId)).Any();
+            var hasHistory = await _history.HasHistory(userId);
 
             var markup = Keyboards.GetKeyboard(hasHistory);
 

@@ -246,7 +246,7 @@ namespace FindIFBot.Services.Admin
             await _bot.SendMessage(
                 userId,
                 $"Ваш пост опубліковано: <a href=\"{channelLink}\">{postText}</a>",
-                replyMarkup: Keyboards.GetKeyboard((await _history.GetByUserId(userId)).Any()),
+                replyMarkup: Keyboards.GetKeyboard(await _history.HasHistory(userId)),
                 parseMode: ParseMode.Html
             );
 
@@ -272,7 +272,7 @@ namespace FindIFBot.Services.Admin
                 userId,
                 "Запит на публікацію відхилено.",
                 replyParameters: new ReplyParameters { MessageId = messageId },
-                replyMarkup: Keyboards.GetKeyboard((await _history.GetByUserId(userId)).Any())
+                replyMarkup: Keyboards.GetKeyboard(await _history.HasHistory(userId))
             );
 
             _logger.Log(Component, LogType.Info, $"Request rejected | UserId: {userId} | MessageId: {messageId}");
@@ -295,7 +295,7 @@ namespace FindIFBot.Services.Admin
                 userId,
                 "Схожий запит вже опубліковано. Скористайтесь пошуком у каналі.",
                 replyParameters: new ReplyParameters { MessageId = messageId },
-                replyMarkup: Keyboards.GetKeyboard((await _history.GetByUserId(userId)).Any())
+                replyMarkup: Keyboards.GetKeyboard(await _history.HasHistory(userId))
             );
 
             _logger.Log(Component, LogType.Info, $"Request marked as duplicate | UserId: {userId} | MessageId: {messageId}");
@@ -413,7 +413,7 @@ namespace FindIFBot.Services.Admin
                 userId,
                 "Публікацію скасовано.",
                 replyParameters: new ReplyParameters { MessageId = messageId },
-                replyMarkup: Keyboards.GetKeyboard((await _history.GetByUserId(userId)).Any())
+                replyMarkup: Keyboards.GetKeyboard(await _history.HasHistory(userId))
             );
 
             _logger.Log(Component, LogType.Info, $"User cancelled find request | UserId: {userId} | MessageId: {messageId}");
