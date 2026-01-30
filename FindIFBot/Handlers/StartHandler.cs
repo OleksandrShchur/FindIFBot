@@ -1,10 +1,8 @@
-﻿using FindIFBot.Helpers;
-using FindIFBot.Persistence;
-using System.Collections.Generic;
+﻿using FindIFBot.EF.Repositories;
+using FindIFBot.Helpers;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
-using Telegram.Bot.Types.ReplyMarkups;
 
 namespace FindIFBot.Handlers
 {
@@ -28,7 +26,7 @@ namespace FindIFBot.Handlers
             );
 
             var userId = message.From!.Id;
-            var hasHistory = _history.GetByUserId(userId).Any();
+            var hasHistory = (await _history.GetByUserId(userId)).Any();
 
             var markup = Keyboards.GetKeyboard(hasHistory);
 

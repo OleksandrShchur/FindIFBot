@@ -15,7 +15,6 @@ namespace FindIFBot.EF.Repositories
         public UserSession Get(long userId)
         {
             var entity = _db.UserSessions
-                .AsNoTracking()
                 .FirstOrDefault(s => s.UserId == userId);
 
             return entity ?? new UserSession { UserId = userId };

@@ -25,6 +25,7 @@ builder.Services.AddDbContext<BotDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddScoped<IUserSessionRepository, UserSessionRepository>();
+builder.Services.AddScoped<IUserRequestHistoryRepository, UserRequestHistoryRepository>();
 
 builder.Services.AddScoped<ICommandDispatcher, CommandDispatcher>();
 builder.Services.AddScoped<IAdminWorkflowService, AdminWorkflowService>();
@@ -34,7 +35,6 @@ builder.Services.AddScoped<IHistoryHandler, HistoryHandler>();
 builder.Services.AddSingleton<IAppLogger, AppLogger>();
 builder.Services.AddSingleton<IAdsPricingService, AdsPricingService>();
 builder.Services.AddSingleton<IMessageStore, InMemoryMessageStore>();
-builder.Services.AddSingleton<IUserRequestHistoryRepository, InMemoryUserRequestHistoryRepository>();
 
 builder.Services.AddOpenApi();
 
