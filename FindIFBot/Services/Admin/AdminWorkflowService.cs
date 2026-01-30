@@ -1,4 +1,6 @@
 ﻿using FindIFBot.Domain;
+using FindIFBot.EF.Entities;
+using FindIFBot.EF.Repositories;
 using FindIFBot.Helpers;
 using FindIFBot.Helpers.Logs;
 using FindIFBot.Persistence;
@@ -159,13 +161,12 @@ namespace FindIFBot.Services.Admin
             {
                 Id = Guid.NewGuid(),
                 UserId = stored.UserId,
-                StoredMessage = stored,
                 Status = RequestStatus.Pending,
                 SubmittedAt = DateTime.UtcNow,
                 UserMessageId = stored.MessageId
             };
 
-            _history.Add(request);
+            await _history.Add(request);
 
             await SendToAdmin(stored, stored.MessageId);
         }
@@ -192,13 +193,12 @@ namespace FindIFBot.Services.Admin
             {
                 Id = Guid.NewGuid(),
                 UserId = stored.UserId,
-                StoredMessage = stored,
                 Status = RequestStatus.Pending,
                 SubmittedAt = DateTime.UtcNow,
                 UserMessageId = stored.MessageId
             };
 
-            _history.Add(request);
+            await _history.Add(request);
 
             var keyboard = BuildAdsKeyboard(message);
 
@@ -246,20 +246,20 @@ namespace FindIFBot.Services.Admin
             await _bot.SendMessage(
                 userId,
                 $"Ваш пост опубліковано: <a href=\"{channelLink}\">{postText}</a>",
-                replyMarkup: Keyboards.GetKeyboard(_history.GetByUserId(userId).Any()),
+                replyMarkup: Keyboards.GetKeyboard(await _history.HasHistory(userId)),
                 parseMode: ParseMode.Html
             );
 
             _logger.Log(Component, LogType.Info,
                 $"Request published | UserId: {userId} | MessageId: {stored.MessageId} | ChannelLink: {channelLink} | Photos: {stored.Photos.Count}");
 
-            var requests = _history.GetByUserId(userId);
+            var requests = await _history.GetByUserId(userId);
             var request = requests.FirstOrDefault(r => r.UserMessageId == stored.MessageId && r.Status == RequestStatus.Pending);
             if (request != null)
             {
                 request.Status = RequestStatus.Approved;
                 request.ChannelLink = channelLink;
-                _history.Update(request);
+                await _history.Update(request);
 
                 _logger.Log(Component, LogType.Info,
                     $"History updated to APPROVED | UserId: {userId} | MessageId: {stored.MessageId}");
@@ -272,17 +272,17 @@ namespace FindIFBot.Services.Admin
                 userId,
                 "Запит на публікацію відхилено.",
                 replyParameters: new ReplyParameters { MessageId = messageId },
-                replyMarkup: Keyboards.GetKeyboard(_history.GetByUserId(userId).Any())
+                replyMarkup: Keyboards.GetKeyboard(await _history.HasHistory(userId))
             );
 
             _logger.Log(Component, LogType.Info, $"Request rejected | UserId: {userId} | MessageId: {messageId}");
 
-            var requests = _history.GetByUserId(userId);
+            var requests = await _history.GetByUserId(userId);
             var request = requests.FirstOrDefault(r => r.UserMessageId == messageId && r.Status == RequestStatus.Pending);
             if (request != null)
             {
                 request.Status = RequestStatus.Rejected;
-                _history.Update(request);
+                await _history.Update(request);
 
                 _logger.Log(Component, LogType.Info,
                     $"History updated to REJECTED | UserId: {userId} | MessageId: {messageId}");
@@ -295,17 +295,17 @@ namespace FindIFBot.Services.Admin
                 userId,
                 "Схожий запит вже опубліковано. Скористайтесь пошуком у каналі.",
                 replyParameters: new ReplyParameters { MessageId = messageId },
-                replyMarkup: Keyboards.GetKeyboard(_history.GetByUserId(userId).Any())
+                replyMarkup: Keyboards.GetKeyboard(await _history.HasHistory(userId))
             );
 
             _logger.Log(Component, LogType.Info, $"Request marked as duplicate | UserId: {userId} | MessageId: {messageId}");
 
-            var requests = _history.GetByUserId(userId);
+            var requests = await _history.GetByUserId(userId);
             var request = requests.FirstOrDefault(r => r.UserMessageId == messageId && r.Status == RequestStatus.Pending);
             if (request != null)
             {
                 request.Status = RequestStatus.Duplicate;
-                _history.Update(request);
+                await _history.Update(request);
 
                 _logger.Log(Component, LogType.Info,
                     $"History updated to DUPLICATE | UserId: {userId} | MessageId: {messageId}");
@@ -413,7 +413,7 @@ namespace FindIFBot.Services.Admin
                 userId,
                 "Публікацію скасовано.",
                 replyParameters: new ReplyParameters { MessageId = messageId },
-                replyMarkup: Keyboards.GetKeyboard(_history.GetByUserId(userId).Any())
+                replyMarkup: Keyboards.GetKeyboard(await _history.HasHistory(userId))
             );
 
             _logger.Log(Component, LogType.Info, $"User cancelled find request | UserId: {userId} | MessageId: {messageId}");

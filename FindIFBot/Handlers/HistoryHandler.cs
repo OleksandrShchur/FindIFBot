@@ -1,5 +1,5 @@
-using FindIFBot.Persistence;
-using FindIFBot.Utils;
+using FindIFBot.Domain;
+using FindIFBot.EF.Repositories;
 using Telegram.Bot;
 using Telegram.Bot.Exceptions;
 using Telegram.Bot.Types;
@@ -21,11 +21,11 @@ namespace FindIFBot.Handlers
             var userId = message.From!.Id;
             var chatId = message.Chat.Id;
 
-            var allRequests = _history.GetByUserId(userId);
+            var allRequests = await _history.GetByUserId(userId);
 
             if (!allRequests.Any())
             {
-                var initialMarkup = BuildMarkup(userId);
+                var initialMarkup = await BuildMarkup(userId);
                 await bot.SendMessage(
                     chatId,
                     "У вас немає історії запитів.",
@@ -35,24 +35,24 @@ namespace FindIFBot.Handlers
             }
 
             var approved = allRequests
-                .Where(r => r.Status == Domain.RequestStatus.Approved)
+                .Where(r => r.Status == RequestStatus.Approved)
                 .OrderByDescending(r => r.SubmittedAt)
                 .ToList();
 
             var pending = allRequests
-                .Where(r => r.Status == Domain.RequestStatus.Pending)
+                .Where(r => r.Status == RequestStatus.Pending)
                 .OrderByDescending(r => r.SubmittedAt)
                 .ToList();
 
-            var markup = BuildMarkup(userId);
+            var markup = await BuildMarkup(userId);
 
             string approvedText = "";
             if (approved.Any())
             {
                 approvedText = "✅ Затверджені запити:\n\n";
-                foreach (var req in approved)
+                foreach (var (index, req) in approved.Index())
                 {
-                    approvedText += $"<code>{TextUtils.GetTextPreview(req.StoredMessage.Text) ?? "Без тексту"}</code>\n";
+                    approvedText += $"<code>- {index + 1}</code>\n";
                     if (!string.IsNullOrEmpty(req.ChannelLink))
                     {
                         approvedText += $"Посилання: {req.ChannelLink}\n";
@@ -69,11 +69,11 @@ namespace FindIFBot.Handlers
             {
                 pendingText = "⏳ Запити на модерації:\n\n";
 
-                foreach (var req in pending)
+                foreach (var (index, req) in pending.Index())
                 {
-                    var itemText = $"<code>{TextUtils.GetTextPreview(req.StoredMessage.Text) ?? "Без тексту"}</code>\n";
+                    var itemText = $"<code>- {index + 1}</code>\n";
 
-                    itemText += $"- ID запиту: {req.UserMessageId}\n";
+                    itemText += $"ID запиту: {req.UserMessageId}\n";
                     pendingMessageIds.Add(req.UserMessageId);
 
                     itemText += "\n";
@@ -131,9 +131,9 @@ namespace FindIFBot.Handlers
             }
         }
 
-        private ReplyKeyboardMarkup BuildMarkup(long userId)
+        private async Task<ReplyKeyboardMarkup> BuildMarkup(long userId)
         {
-            var hasHistory = _history.GetByUserId(userId).Any();
+            var hasHistory = (await _history.GetByUserId(userId)).Any();
             var keyboard = new List<KeyboardButton[]>
             {
                 new KeyboardButton[] { "Розпочати пошук" }

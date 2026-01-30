@@ -1,6 +1,6 @@
-﻿using FindIFBot.Domain;
+﻿using FindIFBot.EF.Entities;
 
-namespace FindIFBot.Persistence
+namespace FindIFBot.EF.Repositories
 {
     public interface IUserSessionRepository
     {

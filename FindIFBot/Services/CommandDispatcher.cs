@@ -1,4 +1,7 @@
 ﻿using FindIFBot.Domain;
+using FindIFBot.EF;
+using FindIFBot.EF.Entities;
+using FindIFBot.EF.Repositories;
 using FindIFBot.Handlers;
 using FindIFBot.Helpers;
 using FindIFBot.Helpers.Logs;
@@ -21,10 +24,10 @@ namespace FindIFBot.Services
         private readonly IHistoryHandler _historyHandler;
         private readonly IUserRequestHistoryRepository _history;
         private readonly IAppLogger _logger;
+        private readonly IServiceScopeFactory _scopeFactory;
 
         private static readonly Dictionary<string, List<Message>> _mediaBuffer = new();
         private static readonly object _lock = new();
-
         private const string Component = "Dispatcher";
 
         public CommandDispatcher(
@@ -35,7 +38,8 @@ namespace FindIFBot.Services
             IStartHandler startHandler,
             IHistoryHandler historyHandler,
             IUserRequestHistoryRepository history,
-            IAppLogger logger)
+            IAppLogger logger,
+            IServiceScopeFactory scopeFactory)
         {
             _bot = bot;
             _sessions = sessions;
@@ -45,6 +49,7 @@ namespace FindIFBot.Services
             _historyHandler = historyHandler;
             _history = history;
             _logger = logger;
+            _scopeFactory = scopeFactory;
         }
 
         public async Task DispatchAsync(Update update)
@@ -54,7 +59,6 @@ namespace FindIFBot.Services
                 await _admin.HandleCallbackAsync(update.CallbackQuery);
                 return;
             }
-
             if (update.Message != null)
             {
                 await HandleMessageAsync(update.Message);
@@ -88,41 +92,71 @@ namespace FindIFBot.Services
 
                 if (isFirstMessageInGroup)
                 {
-                    _ = Task.Delay(2000).ContinueWith(async _ =>
+                    _ = Task.Run(async () =>
                     {
-                        List<Message>? group;
+                        await Task.Delay(2000);
+
+                        List<Message>? group = null;
+                        long capturedUserId = message.From!.Id;
+                        string capturedMediaGroupId = mediaGroupId;
+
                         lock (_lock)
                         {
-                            if (!_mediaBuffer.TryGetValue(key, out group))
+                            var keyLocal = MediaKey(capturedUserId, capturedMediaGroupId);
+                            if (!_mediaBuffer.TryGetValue(keyLocal, out group) || group == null || group.Count == 0)
+                            {
+                                _logger.Log(Component, LogType.Warning,
+                                    $"Media group buffer empty or removed | user={capturedUserId} | groupId={capturedMediaGroupId}");
                                 return;
-                            _mediaBuffer.Remove(key);
+                            }
+                            _mediaBuffer.Remove(keyLocal);
                         }
 
-                        if (group == null || group.Count == 0)
-                            return;
+                        try
+                        {
+                            using var scope = _scopeFactory.CreateScope();
+                            var db = scope.ServiceProvider.GetRequiredService<BotDbContext>();
+                            var sessions = scope.ServiceProvider.GetRequiredService<IUserSessionRepository>();
+                            var freshHistory = scope.ServiceProvider.GetRequiredService<IUserRequestHistoryRepository>();
 
-                        var processingUserId = group[0].From!.Id;
-                        var currentSession = _sessions.Get(processingUserId);
-                        await HandleMediaGroupAsync(group, currentSession);
+                            var currentSession = sessions.Get(capturedUserId);
+
+                            if (currentSession == null)
+                            {
+                                _logger.Log(Component, LogType.Error,
+                                    $"No session found in media group background task | user={capturedUserId}");
+                                return;
+                            }
+
+                            _logger.Log(Component, LogType.Info,
+                                $"Processing media group in fresh scope | user={capturedUserId} | state={currentSession.State} | photos={group.Count}");
+
+                            await HandleMediaGroupAsync(group, currentSession, freshHistory);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.Log(Component, LogType.Error,
+                                $"Media group background task failed | user={capturedUserId} | ex={ex.Message}\n{ex.StackTrace}");
+                        }
                     });
                 }
-
                 return;
             }
 
             await HandleSingleMessageAsync(message, session);
         }
 
-        private async Task HandleMediaGroupAsync(List<Message> messages, UserSession session)
+        private async Task HandleMediaGroupAsync(List<Message> messages, UserSession session, IUserRequestHistoryRepository freshHistory)
         {
             var orderedMessages = messages.OrderBy(m => m.MessageId).ToList();
-
             var captionMessage = orderedMessages.FirstOrDefault(m => !string.IsNullOrEmpty(m.Caption))
                                  ?? orderedMessages[0];
 
             var chatId = captionMessage.Chat.Id;
             var userId = captionMessage.From!.Id;
-            var hasHistory = _history.GetByUserId(userId).Any();
+
+            // Use the fresh repository passed from background scope
+            var hasHistory = await freshHistory.HasHistory(userId);
 
             var photos = orderedMessages
                 .Where(m => m.Photo != null)
@@ -141,7 +175,6 @@ namespace FindIFBot.Services
                 {
                     _logger.Log(Component, LogType.Warning,
                         $"Validation failed: too many photos | UserId: {userId} | Photos: {photos.Count}");
-
                     await _bot.SendMessage(
                         chatId,
                         "<b>Помилка</b>: забагато фотографій (<b>максимум 10</b> в одному запиті). Будь ласка, надішліть менше.",
@@ -157,7 +190,6 @@ namespace FindIFBot.Services
                 {
                     _logger.Log(Component, LogType.Warning,
                         $"Ignored non-photo media in album | UserId: {userId} | Ignored: {ignoredCount} | Total: {totalMediaCount}");
-
                     await _bot.SendMessage(
                         chatId,
                         $"<b>Увага</b>: з {totalMediaCount} елементів альбому оброблено тільки {photos.Count} фото. " +
@@ -171,7 +203,6 @@ namespace FindIFBot.Services
                 {
                     _logger.Log(Component, LogType.Warning,
                         $"Validation failed: no photos in album | UserId: {userId}");
-
                     await _bot.SendMessage(
                         chatId,
                         "<b>Помилка</b>: в альбомі немає фото. Надішліть альбом з фотографіями.",
@@ -180,7 +211,6 @@ namespace FindIFBot.Services
                     );
                     session.State = UserState.Idle;
                     _sessions.Save(session);
-
                     return;
                 }
             }
@@ -215,14 +245,11 @@ namespace FindIFBot.Services
         private async Task HandleSingleMessageAsync(Message message, UserSession session)
         {
             var userId = message.From?.Id ?? message.Chat.Id;
-            var hasHistory = _history.GetByUserId(userId).Any();
-
+            var hasHistory = await _history.HasHistory(userId);
             var text = message.Text?.Trim() ?? message.Caption?.Trim();
-
             var photos = message.Photo != null
                 ? new List<string> { message.Photo.Last().FileId }
                 : new List<string>();
-
             var stored = new StoredMessage(
                 message.Chat.Id,
                 userId,
@@ -231,26 +258,19 @@ namespace FindIFBot.Services
                 message.MediaGroupId,
                 message.MessageId
             );
-
             _messages.Store(message.MessageId, stored);
-
             _logger.Log(Component, LogType.Info,
                 $"Stored single message | UserId: {userId} | MessageId: {message.MessageId} | Photos: {photos.Count} | TextLength: {(text?.Length ?? 0)}");
-
             var normalized = (text ?? string.Empty).ToLowerInvariant();
-
             bool isSubmissionState = session.State == UserState.WaitingForFindQuery || session.State == UserState.WaitingForAdContent;
-
             if (isSubmissionState)
             {
                 bool hasNonPhotoMedia = (message.Video != null || message.Animation != null || message.Document != null ||
                                          message.Audio != null || message.Voice != null || message.Sticker != null);
-
                 if (hasNonPhotoMedia)
                 {
                     _logger.Log(Component, LogType.Warning,
                         $"Validation failed: non-photo media in submission | UserId: {userId} | MessageId: {message.MessageId}");
-
                     await _bot.SendMessage(
                         message.Chat.Id,
                         "<b>Помилка</b>: надіслано не фото (відео, документ тощо). Підтримуємо тільки фотографії.",
@@ -262,7 +282,6 @@ namespace FindIFBot.Services
                     return;
                 }
             }
-
             if (normalized == "/start")
             {
                 session.State = UserState.Idle;
@@ -270,7 +289,6 @@ namespace FindIFBot.Services
                 await _startHandler.HandleAsync(_bot, message);
                 return;
             }
-
             switch (session.State)
             {
                 case UserState.WaitingForFindQuery:
@@ -287,13 +305,11 @@ namespace FindIFBot.Services
                     _sessions.Save(session);
                     return;
             }
-
             if (IsFindCommand(normalized))
             {
                 session.State = UserState.WaitingForFindQuery;
                 _sessions.Save(session);
                 _logger.Log(Component, LogType.Info, $"User started find flow | UserId: {userId}");
-
                 await _bot.SendMessage(
                     message.Chat.Id,
                     new FindHandler().Handle(),
@@ -301,13 +317,11 @@ namespace FindIFBot.Services
                 );
                 return;
             }
-
             if (IsAdsCommand(normalized))
             {
                 session.State = UserState.WaitingForAdContent;
                 _sessions.Save(session);
                 _logger.Log(Component, LogType.Info, $"User started ads flow | UserId: {userId}");
-
                 await _bot.SendMessage(
                     message.Chat.Id,
                     new AdsHandler().Handle(),
@@ -316,7 +330,6 @@ namespace FindIFBot.Services
                 );
                 return;
             }
-
             if (IsAdviceCommand(normalized))
             {
                 session.State = UserState.WaitingForAdvice;
@@ -329,17 +342,14 @@ namespace FindIFBot.Services
                 );
                 return;
             }
-
             await HandleStatelessCommandAsync(message, normalized);
         }
 
         private async Task HandleAdviceAsync(Message message)
         {
             var userId = message.From!.Id;
-            var hasHistory = _history.GetByUserId(userId).Any();
-
+            var hasHistory = await _history.HasHistory(userId);
             _logger.Log(Component, LogType.Info, $"Advice received | UserId: {userId}");
-
             await _bot.SendMessage(
                 message.Chat.Id,
                 "Дякуємо за вашу ідею! Ми її опрацюємо.",
@@ -350,14 +360,12 @@ namespace FindIFBot.Services
         private async Task HandleStatelessCommandAsync(Message message, string normalized)
         {
             var userId = message.From!.Id;
-            var hasHistory = _history.GetByUserId(userId).Any();
-
+            var hasHistory = await _history.HasHistory(userId);
             if (normalized == "історія запитів" || normalized == "/history")
             {
                 await _historyHandler.HandleAsync(_bot, message);
                 return;
             }
-
             ICommandHandler handler = normalized switch
             {
                 "/help" or "довідка" => new HelpHandler(),
@@ -365,9 +373,7 @@ namespace FindIFBot.Services
                 "/donate" or "підтримати нас" => new SupportUsHandler(),
                 _ => new UnknownHandler()
             };
-
             _logger.Log(Component, LogType.Info, $"Stateless command handled: {normalized} | UserId: {userId}");
-
             await _bot.SendMessage(
                 message.Chat.Id,
                 handler.Handle(),
@@ -389,14 +395,12 @@ namespace FindIFBot.Services
         {
             _logger.Log(Component, LogType.Info,
                 $"Preparing find confirmation | UserId: {message.From!.Id} | MessageId: {message.MessageId}");
-
             if (!_messages.TryGet(message.MessageId, out var stored))
             {
                 _logger.Log(Component, LogType.Error,
                     $"Stored message not found for confirmation | UserId: {message.From!.Id} | MessageId: {message.MessageId}");
                 return;
             }
-
             if (stored.Photos.Count > 0)
             {
                 var media = stored.Photos
@@ -408,7 +412,6 @@ namespace FindIFBot.Services
             {
                 await _bot.SendMessage(message.Chat.Id, stored.Text ?? "(no text)");
             }
-
             var keyboard = new InlineKeyboardMarkup(new[]
             {
                 new[]
@@ -417,12 +420,9 @@ namespace FindIFBot.Services
                     InlineKeyboardButton.WithCallbackData("Скасувати", $"cancel|{message.From!.Id}|{message.MessageId}")
                 }
             });
-
             await _bot.SendMessage(message.Chat.Id, "Надіслати запит з повідомлення на перегляд адмінам?", replyMarkup: keyboard);
-
             _logger.Log(Component, LogType.Info,
                 $"Find confirmation sent | UserId: {message.From!.Id} | MessageId: {message.MessageId} | Photos: {stored.Photos.Count}");
-
             session.State = UserState.ConfirmFindContent;
             _sessions.Save(session);
         }
