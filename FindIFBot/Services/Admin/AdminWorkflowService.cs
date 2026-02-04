@@ -1,10 +1,12 @@
-﻿using FindIFBot.Domain;
+﻿using FindIFBot.Configuration;
+using FindIFBot.Domain;
 using FindIFBot.EF.Entities;
 using FindIFBot.EF.Repositories;
 using FindIFBot.Helpers;
 using FindIFBot.Helpers.Logs;
 using FindIFBot.Persistence;
 using FindIFBot.Utils;
+using Microsoft.Extensions.Options;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
@@ -20,10 +22,7 @@ namespace FindIFBot.Services.Admin
         private readonly IUserSessionRepository _sessions;
         private readonly IUserRequestHistoryRepository _history;
         private readonly IAppLogger _logger;
-
-        private readonly long _adminId;
-        private readonly string _outputChannel;
-        private readonly string _channelLink;
+        private readonly TelegramOptions _options;
 
         private const string Component = "AdminWorkflow";
 
@@ -34,7 +33,8 @@ namespace FindIFBot.Services.Admin
             IUserSessionRepository sessions,
             IUserRequestHistoryRepository history,
             IConfiguration config,
-            IAppLogger logger)
+            IAppLogger logger,
+            IOptions<TelegramOptions> options)
         {
             _bot = bot;
             _messages = messages;
@@ -42,10 +42,7 @@ namespace FindIFBot.Services.Admin
             _sessions = sessions;
             _history = history;
             _logger = logger;
-
-            long.TryParse(config["Telegram:AdminId"], out _adminId);
-            _outputChannel = config["Telegram:UserOutputChannel"] ?? string.Empty;
-            _channelLink = config["Telegram:LinkToChannel"] ?? string.Empty;
+            _options = options.Value;
         }
 
         public async Task HandleCallbackAsync(CallbackQuery cb)
@@ -73,10 +70,10 @@ namespace FindIFBot.Services.Admin
             }
             else
             {
-                if (cb.From.Id != _adminId)
+                if (cb.From.Id != _options.AdminId)
                 {
                     _logger.Log(Component, LogType.Warning,
-                        $"Invalid sender for admin callback | Expected: {_adminId} | Actual: {cb.From.Id}");
+                        $"Invalid sender for admin callback | Expected: {_options.AdminId} | Actual: {cb.From.Id}");
                     return;
                 }
             }
@@ -207,12 +204,12 @@ namespace FindIFBot.Services.Admin
                 var media = stored.Photos
                     .Select((id, i) => new InputMediaPhoto(id) { Caption = i == 0 ? stored.Text : null })
                     .ToArray();
-                await _bot.SendMediaGroup(_adminId, media);
-                await _bot.SendMessage(_adminId, "Moderation actions:", replyMarkup: keyboard);
+                await _bot.SendMediaGroup(_options.AdminId, media);
+                await _bot.SendMessage(_options.AdminId, "Moderation actions:", replyMarkup: keyboard);
             }
             else
             {
-                await _bot.SendMessage(_adminId, stored.Text ?? "(no text)", replyMarkup: keyboard);
+                await _bot.SendMessage(_options.AdminId, stored.Text ?? "(no text)", replyMarkup: keyboard);
             }
 
             _logger.Log(Component, LogType.Info,
@@ -230,18 +227,18 @@ namespace FindIFBot.Services.Admin
                 var media = stored.Photos
                     .Select((id, i) => new InputMediaPhoto(id) { Caption = i == 0 ? stored.Text : null })
                     .ToArray();
-                var result = await _bot.SendMediaGroup(_outputChannel, media);
+                var result = await _bot.SendMediaGroup(_options.UserOutputChannel, media);
                 postText = TextUtils.GetTextPreview(result.First().Caption);
                 postId = result.First().MessageId;
             }
             else
             {
-                var result = await _bot.SendMessage(_outputChannel, stored.Text ?? "(no text)");
+                var result = await _bot.SendMessage(_options.UserOutputChannel, stored.Text ?? "(no text)");
                 postText = TextUtils.GetTextPreview(result.Text);
                 postId = result.MessageId;
             }
 
-            channelLink = $"{_channelLink}/{postId}";
+            channelLink = $"{_options.LinkToChannel}/{postId}";
 
             await _bot.SendMessage(
                 userId,
@@ -315,7 +312,7 @@ namespace FindIFBot.Services.Admin
         private async Task ApproveAdsAsync(long userId, int messageId, StoredMessage stored)
         {
             var count = 0;
-            try { count = await _bot.GetChatMemberCount(_outputChannel); } catch { }
+            try { count = await _bot.GetChatMemberCount(_options.UserOutputChannel); } catch { }
             var price = _pricing.CalculatePrice(count);
 
             _logger.Log(Component, LogType.Info,
@@ -335,7 +332,7 @@ namespace FindIFBot.Services.Admin
             });
 
             await _bot.SendMessage(
-                _adminId,
+                _options.AdminId,
                 $"Реклама схвалена. Ціна: <code>{price}</code> грн. Очікуємо оплату для публікації.",
                 replyMarkup: keyboard,
                 parseMode: ParseMode.Html
@@ -388,12 +385,12 @@ namespace FindIFBot.Services.Admin
                 var media = stored.Photos
                     .Select((id, i) => new InputMediaPhoto(id) { Caption = i == 0 ? stored.Text : null })
                     .ToArray();
-                await _bot.SendMediaGroup(_adminId, media);
-                await _bot.SendMessage(_adminId, "Moderation actions:", replyMarkup: keyboard);
+                await _bot.SendMediaGroup(_options.AdminId, media);
+                await _bot.SendMessage(_options.AdminId, "Moderation actions:", replyMarkup: keyboard);
             }
             else
             {
-                await _bot.SendMessage(_adminId, stored.Text ?? "(no text)", replyMarkup: keyboard);
+                await _bot.SendMessage(_options.AdminId, stored.Text ?? "(no text)", replyMarkup: keyboard);
             }
         }
 
