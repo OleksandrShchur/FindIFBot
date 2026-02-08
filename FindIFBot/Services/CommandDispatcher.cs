@@ -1,4 +1,5 @@
-﻿using FindIFBot.Domain;
+﻿using FindIFBot.Configuration;
+using FindIFBot.Domain;
 using FindIFBot.EF;
 using FindIFBot.EF.Entities;
 using FindIFBot.EF.Repositories;
@@ -7,6 +8,7 @@ using FindIFBot.Helpers;
 using FindIFBot.Helpers.Logs;
 using FindIFBot.Persistence;
 using FindIFBot.Services.Admin;
+using Microsoft.Extensions.Options;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
@@ -25,6 +27,7 @@ namespace FindIFBot.Services
         private readonly IUserRequestHistoryRepository _history;
         private readonly IAppLogger _logger;
         private readonly IServiceScopeFactory _scopeFactory;
+        private readonly TelegramOptions _options;
 
         private static readonly Dictionary<string, List<Message>> _mediaBuffer = new();
         private static readonly object _lock = new();
@@ -39,7 +42,8 @@ namespace FindIFBot.Services
             IHistoryHandler historyHandler,
             IUserRequestHistoryRepository history,
             IAppLogger logger,
-            IServiceScopeFactory scopeFactory)
+            IServiceScopeFactory scopeFactory,
+            IOptions<TelegramOptions> options)
         {
             _bot = bot;
             _sessions = sessions;
@@ -50,6 +54,7 @@ namespace FindIFBot.Services
             _history = history;
             _logger = logger;
             _scopeFactory = scopeFactory;
+            _options = options.Value;
         }
 
         public async Task DispatchAsync(Update update)
@@ -61,6 +66,31 @@ namespace FindIFBot.Services
             }
             if (update.Message != null)
             {
+                if (update.Message.MediaGroupId != null)
+                {
+                    //await _bot.SendMediaGroup
+                    //(
+                    //    _options.LogsOutputChannelId,
+                    //    new[]
+                    //    {
+                    //        new InputMediaPhoto(update.Message.Photo!.Last().FileId)
+                    //        {
+                    //            Caption = update.Message.Caption
+                    //        }
+                    //    },
+                    //    messageThreadId: _options.AllMessagesThreadId
+                    //);
+                }
+                else
+                {
+                    await _bot.SendMessage
+                    (
+                        _options.LogsOutputChannel,
+                        update.Message.Text,
+                        messageThreadId: _options.AllMessagesThreadId
+                    );
+                }
+
                 await HandleMessageAsync(update.Message);
             }
         }

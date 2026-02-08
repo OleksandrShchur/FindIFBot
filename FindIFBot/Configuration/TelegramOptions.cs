@@ -8,8 +8,8 @@
         public string UserOutputChannel { get; init; } = string.Empty;
         public string LinkToChannel { get; init; } = string.Empty;
         public string LogsOutputChannel { get; init; } = string.Empty;
-        public long LogsThreadId { get; init; }
-        public long ErrorLogsThreadId { get; init; }
-        public long AllMessagesOutputChannel { get; init; }
+        public int LogsThreadId { get; init; }
+        public int ErrorLogsThreadId { get; init; }
+        public int AllMessagesThreadId { get; init; }
     }
 }
