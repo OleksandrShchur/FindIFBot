@@ -8,6 +8,8 @@ using FindIFBot.Services;
 using FindIFBot.Services.Admin;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Serilog;
+using Serilog.Events;
 using Telegram.Bot;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -21,6 +23,22 @@ builder.Services
     .Bind(builder.Configuration.GetSection("Telegram"))
     .Validate(o => !string.IsNullOrWhiteSpace(o.BotToken), "Telegram BotToken is required")
     .ValidateOnStart();
+
+// Logging
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Information()
+    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+    .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
+    .Enrich.FromLogContext()
+    .WriteTo.File(
+        path: "logs/log-.txt", // creates logs/log-20260212.txt etc.
+        rollingInterval: RollingInterval.Day, // new file every day
+        outputTemplate: "{Timestamp:dd.MM.yyyy HH:mm:ss} [{Level:u3}] {Message:lj}{NewLine}{Exception}",
+        retainedFileCountLimit: 10, // keep last 10 days
+        fileSizeLimitBytes: 10 * 1024 * 1024 // 10 MB per file
+    )
+    .CreateLogger();
+builder.Host.UseSerilog();
 
 // Telegram client
 builder.Services.AddSingleton<ITelegramBotClient>(sp =>
@@ -45,7 +63,7 @@ builder.Services.AddScoped<IStartHandler, StartHandler>();
 builder.Services.AddScoped<IHistoryHandler, HistoryHandler>();
 
 // Singletons
-builder.Services.AddSingleton<IAppLogger, AppLogger>();
+builder.Services.AddSingleton(typeof(IAppLogger<>), typeof(AppLogger<>));
 builder.Services.AddSingleton<IAdsPricingService, AdsPricingService>();
 builder.Services.AddSingleton<IMessageStore, InMemoryMessageStore>();
 
@@ -60,6 +78,7 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
+app.UseSerilogRequestLogging();
 app.UseHttpsRedirection();
 app.UseAuthorization();
 app.MapControllers();
