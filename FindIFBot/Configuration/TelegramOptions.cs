@@ -11,5 +11,6 @@
         public int LogsThreadId { get; init; }
         public int ErrorLogsThreadId { get; init; }
         public int AllMessagesThreadId { get; init; }
+        public int RetryMaxAttempts { get; init; }
     }
 }
