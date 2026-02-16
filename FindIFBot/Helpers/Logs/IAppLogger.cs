@@ -1,7 +1,9 @@
 ﻿namespace FindIFBot.Helpers.Logs
 {
-    public interface IAppLogger
+    public interface IAppLogger<T>
     {
-        void Log(string component, LogType level, string message);
+        Task LogInfo(string component, string message);
+        Task LogWarning(string component, string message);
+        Task LogError(string component, string message);
     }
 }

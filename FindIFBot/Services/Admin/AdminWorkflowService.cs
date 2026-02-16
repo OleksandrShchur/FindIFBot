@@ -1,10 +1,12 @@
-﻿using FindIFBot.Domain;
+﻿using FindIFBot.Configuration;
+using FindIFBot.Domain;
 using FindIFBot.EF.Entities;
 using FindIFBot.EF.Repositories;
 using FindIFBot.Helpers;
 using FindIFBot.Helpers.Logs;
 using FindIFBot.Persistence;
 using FindIFBot.Utils;
+using Microsoft.Extensions.Options;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
@@ -19,11 +21,8 @@ namespace FindIFBot.Services.Admin
         private readonly IAdsPricingService _pricing;
         private readonly IUserSessionRepository _sessions;
         private readonly IUserRequestHistoryRepository _history;
-        private readonly IAppLogger _logger;
-
-        private readonly long _adminId;
-        private readonly string _outputChannel;
-        private readonly string _channelLink;
+        private readonly IAppLogger<AdminWorkflowService> _logger;
+        private readonly TelegramOptions _options;
 
         private const string Component = "AdminWorkflow";
 
@@ -34,7 +33,8 @@ namespace FindIFBot.Services.Admin
             IUserSessionRepository sessions,
             IUserRequestHistoryRepository history,
             IConfiguration config,
-            IAppLogger logger)
+            IAppLogger<AdminWorkflowService> logger,
+            IOptions<TelegramOptions> options)
         {
             _bot = bot;
             _messages = messages;
@@ -42,10 +42,7 @@ namespace FindIFBot.Services.Admin
             _sessions = sessions;
             _history = history;
             _logger = logger;
-
-            long.TryParse(config["Telegram:AdminId"], out _adminId);
-            _outputChannel = config["Telegram:UserOutputChannel"] ?? string.Empty;
-            _channelLink = config["Telegram:LinkToChannel"] ?? string.Empty;
+            _options = options.Value;
         }
 
         public async Task HandleCallbackAsync(CallbackQuery cb)
@@ -58,33 +55,32 @@ namespace FindIFBot.Services.Admin
             var userId = long.Parse(parts[1]);
             var messageId = int.Parse(parts[2]);
 
-            _logger.Log(Component, LogType.Info,
-                $"Callback received | Action: {action} | UserId: {userId} | MessageId: {messageId} | FromUserId: {cb.From.Id}");
+            await _logger.LogInfo(Component, $"Callback received | Action: {action} | UserId: {userId} | MessageId: {messageId} | FromUserId: {cb.From.Id}");
 
             // Sender validation
             if (action == "proceed" || action == "cancel")
             {
                 if (cb.From.Id != userId)
                 {
-                    _logger.Log(Component, LogType.Warning,
-                        $"Invalid sender for user callback | Expected: {userId} | Actual: {cb.From.Id}");
+                    await _logger.LogWarning(Component, $"Invalid sender for user callback | Expected: {userId} | Actual: {cb.From.Id}");
+                    
                     return;
                 }
             }
             else
             {
-                if (cb.From.Id != _adminId)
+                if (cb.From.Id != _options.AdminId)
                 {
-                    _logger.Log(Component, LogType.Warning,
-                        $"Invalid sender for admin callback | Expected: {_adminId} | Actual: {cb.From.Id}");
+                    await _logger.LogWarning(Component, $"Invalid sender for admin callback | Expected: {_options.AdminId} | Actual: {cb.From.Id}");
+                    
                     return;
                 }
             }
 
             if (!_messages.TryGet(messageId, out var stored))
             {
-                _logger.Log(Component, LogType.Error,
-                    $"Stored message not found on callback | UserId: {userId} | MessageId: {messageId}");
+                await _logger.LogError(Component, $"Stored message not found on callback | UserId: {userId} | MessageId: {messageId}");
+                
                 return;
             }
 
@@ -93,35 +89,35 @@ namespace FindIFBot.Services.Admin
             switch (action)
             {
                 case "+find":
-                    _logger.Log(Component, LogType.Info, $"Admin approved find request | UserId: {userId} | MessageId: {messageId}");
+                    await _logger.LogInfo(Component, $"Admin approved find request | UserId: {userId} | MessageId: {messageId}");
                     await PublishAsync(userId, stored);
                     break;
                 case "-find":
-                    _logger.Log(Component, LogType.Info, $"Admin rejected find request | UserId: {userId} | MessageId: {messageId}");
+                    await _logger.LogInfo(Component, $"Admin rejected find request | UserId: {userId} | MessageId: {messageId}");
                     await RejectAsync(userId, messageId);
                     break;
                 case "?find":
-                    _logger.Log(Component, LogType.Info, $"Admin marked find as duplicate | UserId: {userId} | MessageId: {messageId}");
+                    await _logger.LogInfo(Component, $"Admin marked find as duplicate | UserId: {userId} | MessageId: {messageId}");
                     await DuplicateAsync(userId, messageId);
                     break;
                 case "+ads":
-                    _logger.Log(Component, LogType.Info, $"Admin approved ads | UserId: {userId} | MessageId: {messageId}");
+                    await _logger.LogInfo(Component, $"Admin approved ads | UserId: {userId} | MessageId: {messageId}");
                     await ApproveAdsAsync(userId, messageId, stored);
                     return;
                 case "postAds":
-                    _logger.Log(Component, LogType.Info, $"Admin published ads after payment | UserId: {userId} | MessageId: {messageId}");
+                    await _logger.LogInfo(Component, $"Admin published ads after payment | UserId: {userId} | MessageId: {messageId}");
                     await PublishAsync(userId, stored);
                     break;
                 case "-ads":
-                    _logger.Log(Component, LogType.Info, $"Admin rejected ads | UserId: {userId} | MessageId: {messageId}");
+                    await _logger.LogInfo(Component, $"Admin rejected ads | UserId: {userId} | MessageId: {messageId}");
                     await RejectAsync(userId, messageId);
                     break;
                 case "<money":
-                    _logger.Log(Component, LogType.Info, $"Insufficient payment for ads | UserId: {userId} | MessageId: {messageId}");
+                    await _logger.LogInfo(Component, $"Insufficient payment for ads | UserId: {userId} | MessageId: {messageId}");
                     await InsufficientMoneyAsync(userId, messageId);
                     return;
                 case "proceed":
-                    _logger.Log(Component, LogType.Info, $"User confirmed submission | UserId: {userId} | MessageId: {messageId}");
+                    await _logger.LogInfo(Component, $"User confirmed submission | UserId: {userId} | MessageId: {messageId}");
                     await SubmitFindAsync(stored);
                     var session = _sessions.Get(userId);
                     session.State = UserState.Idle;
@@ -137,9 +133,10 @@ namespace FindIFBot.Services.Admin
 
                     return;
                 case "cancel":
-                    _logger.Log(Component, LogType.Info, $"User cancelled submission | UserId: {userId} | MessageId: {messageId}");
+                    await _logger.LogInfo(Component, $"User cancelled submission | UserId: {userId} | MessageId: {messageId}");
                     await CancelFindAsync(userId, messageId);
                     await CleanupAsync(cb, messageId);
+
                     return;
             }
 
@@ -148,7 +145,7 @@ namespace FindIFBot.Services.Admin
 
         public async Task SubmitFindAsync(StoredMessage stored)
         {
-            _logger.Log(Component, LogType.Info,
+            await _logger.LogInfo(Component,
                 $"Submitting find request to moderation | UserId: {stored.UserId} | MessageId: {stored.MessageId} | Photos: {stored.Photos.Count}");
 
             await _bot.SendMessage(
@@ -175,13 +172,12 @@ namespace FindIFBot.Services.Admin
         {
             if (!_messages.TryGet(message.MessageId, out var stored))
             {
-                _logger.Log(Component, LogType.Error,
+                await _logger.LogError(Component,
                     $"Stored message not found on ad submission | MessageId: {message.MessageId}");
                 return;
             }
 
-            _logger.Log(Component, LogType.Info,
-                $"Ad submitted by user | UserId: {stored.UserId} | MessageId: {stored.MessageId} | Photos: {stored.Photos.Count}");
+            await _logger.LogInfo(Component, $"Ad submitted by user | UserId: {stored.UserId} | MessageId: {stored.MessageId} | Photos: {stored.Photos.Count}");
 
             await _bot.SendMessage(
                 message.Chat.Id,
@@ -207,16 +203,15 @@ namespace FindIFBot.Services.Admin
                 var media = stored.Photos
                     .Select((id, i) => new InputMediaPhoto(id) { Caption = i == 0 ? stored.Text : null })
                     .ToArray();
-                await _bot.SendMediaGroup(_adminId, media);
-                await _bot.SendMessage(_adminId, "Moderation actions:", replyMarkup: keyboard);
+                await _bot.SendMediaGroup(_options.AdminId, media);
+                await _bot.SendMessage(_options.AdminId, "Moderation actions:", replyMarkup: keyboard);
             }
             else
             {
-                await _bot.SendMessage(_adminId, stored.Text ?? "(no text)", replyMarkup: keyboard);
+                await _bot.SendMessage(_options.AdminId, stored.Text ?? "(no text)", replyMarkup: keyboard);
             }
 
-            _logger.Log(Component, LogType.Info,
-                $"Ad forwarded to admin for moderation | UserId: {stored.UserId} | MessageId: {stored.MessageId}");
+            await _logger.LogInfo(Component, $"Ad forwarded to admin for moderation | UserId: {stored.UserId} | MessageId: {stored.MessageId}");
         }
 
         private async Task PublishAsync(long userId, StoredMessage stored)
@@ -230,18 +225,18 @@ namespace FindIFBot.Services.Admin
                 var media = stored.Photos
                     .Select((id, i) => new InputMediaPhoto(id) { Caption = i == 0 ? stored.Text : null })
                     .ToArray();
-                var result = await _bot.SendMediaGroup(_outputChannel, media);
+                var result = await _bot.SendMediaGroup(_options.UserOutputChannel, media);
                 postText = TextUtils.GetTextPreview(result.First().Caption);
                 postId = result.First().MessageId;
             }
             else
             {
-                var result = await _bot.SendMessage(_outputChannel, stored.Text ?? "(no text)");
+                var result = await _bot.SendMessage(_options.UserOutputChannel, stored.Text ?? "(no text)");
                 postText = TextUtils.GetTextPreview(result.Text);
                 postId = result.MessageId;
             }
 
-            channelLink = $"{_channelLink}/{postId}";
+            channelLink = $"{_options.LinkToChannel}/{postId}";
 
             await _bot.SendMessage(
                 userId,
@@ -250,7 +245,7 @@ namespace FindIFBot.Services.Admin
                 parseMode: ParseMode.Html
             );
 
-            _logger.Log(Component, LogType.Info,
+            await _logger.LogInfo(Component,
                 $"Request published | UserId: {userId} | MessageId: {stored.MessageId} | ChannelLink: {channelLink} | Photos: {stored.Photos.Count}");
 
             var requests = await _history.GetByUserId(userId);
@@ -261,8 +256,7 @@ namespace FindIFBot.Services.Admin
                 request.ChannelLink = channelLink;
                 await _history.Update(request);
 
-                _logger.Log(Component, LogType.Info,
-                    $"History updated to APPROVED | UserId: {userId} | MessageId: {stored.MessageId}");
+                await _logger.LogInfo(Component, $"History updated to APPROVED | UserId: {userId} | MessageId: {stored.MessageId}");
             }
         }
 
@@ -275,7 +269,7 @@ namespace FindIFBot.Services.Admin
                 replyMarkup: Keyboards.GetKeyboard(await _history.HasHistory(userId))
             );
 
-            _logger.Log(Component, LogType.Info, $"Request rejected | UserId: {userId} | MessageId: {messageId}");
+            await _logger.LogInfo(Component, $"Request rejected | UserId: {userId} | MessageId: {messageId}");
 
             var requests = await _history.GetByUserId(userId);
             var request = requests.FirstOrDefault(r => r.UserMessageId == messageId && r.Status == RequestStatus.Pending);
@@ -284,8 +278,7 @@ namespace FindIFBot.Services.Admin
                 request.Status = RequestStatus.Rejected;
                 await _history.Update(request);
 
-                _logger.Log(Component, LogType.Info,
-                    $"History updated to REJECTED | UserId: {userId} | MessageId: {messageId}");
+                await _logger.LogInfo(Component, $"History updated to REJECTED | UserId: {userId} | MessageId: {messageId}");
             }
         }
 
@@ -298,7 +291,7 @@ namespace FindIFBot.Services.Admin
                 replyMarkup: Keyboards.GetKeyboard(await _history.HasHistory(userId))
             );
 
-            _logger.Log(Component, LogType.Info, $"Request marked as duplicate | UserId: {userId} | MessageId: {messageId}");
+            await _logger.LogInfo(Component, $"Request marked as duplicate | UserId: {userId} | MessageId: {messageId}");
 
             var requests = await _history.GetByUserId(userId);
             var request = requests.FirstOrDefault(r => r.UserMessageId == messageId && r.Status == RequestStatus.Pending);
@@ -307,19 +300,17 @@ namespace FindIFBot.Services.Admin
                 request.Status = RequestStatus.Duplicate;
                 await _history.Update(request);
 
-                _logger.Log(Component, LogType.Info,
-                    $"History updated to DUPLICATE | UserId: {userId} | MessageId: {messageId}");
+                await _logger.LogInfo(Component, "History updated to DUPLICATE | UserId: {userId} | MessageId: {messageId}");
             }
         }
 
         private async Task ApproveAdsAsync(long userId, int messageId, StoredMessage stored)
         {
             var count = 0;
-            try { count = await _bot.GetChatMemberCount(_outputChannel); } catch { }
+            try { count = await _bot.GetChatMemberCount(_options.UserOutputChannel); } catch { }
             var price = _pricing.CalculatePrice(count);
 
-            _logger.Log(Component, LogType.Info,
-                $"Ads approved, price calculated | UserId: {userId} | MessageId: {messageId} | Price: {price} грн");
+            await _logger.LogInfo(Component, $"Ads approved, price calculated | UserId: {userId} | MessageId: {messageId} | Price: {price} грн");
 
             await _bot.SendMessage(
                 userId,
@@ -335,7 +326,7 @@ namespace FindIFBot.Services.Admin
             });
 
             await _bot.SendMessage(
-                _adminId,
+                _options.AdminId,
                 $"Реклама схвалена. Ціна: <code>{price}</code> грн. Очікуємо оплату для публікації.",
                 replyMarkup: keyboard,
                 parseMode: ParseMode.Html
@@ -350,13 +341,13 @@ namespace FindIFBot.Services.Admin
                 replyParameters: new ReplyParameters { MessageId = messageId }
             );
 
-            _logger.Log(Component, LogType.Info, $"Insufficient payment reported | UserId: {userId} | MessageId: {messageId}");
+            await _logger.LogInfo(Component, $"Insufficient payment reported | UserId: {userId} | MessageId: {messageId}");
         }
 
         private async Task CleanupAsync(CallbackQuery cb, int messageId)
         {
             _messages.Remove(messageId);
-            _logger.Log(Component, LogType.Info, $"Cleanup: removed stored message | MessageId: {messageId}");
+            await _logger.LogInfo(Component, $"Cleanup: removed stored message | MessageId: {messageId}");
 
             try
             {
@@ -367,7 +358,7 @@ namespace FindIFBot.Services.Admin
 
         private async Task SendToAdmin(StoredMessage stored, int messageId)
         {
-            _logger.Log(Component, LogType.Info,
+            await _logger.LogInfo(Component,
                 $"Sending find request to admin | UserId: {stored.UserId} | MessageId: {messageId} | Photos: {stored.Photos.Count}");
 
             var keyboard = new InlineKeyboardMarkup(new[]
@@ -388,12 +379,12 @@ namespace FindIFBot.Services.Admin
                 var media = stored.Photos
                     .Select((id, i) => new InputMediaPhoto(id) { Caption = i == 0 ? stored.Text : null })
                     .ToArray();
-                await _bot.SendMediaGroup(_adminId, media);
-                await _bot.SendMessage(_adminId, "Moderation actions:", replyMarkup: keyboard);
+                await _bot.SendMediaGroup(_options.AdminId, media);
+                await _bot.SendMessage(_options.AdminId, "Moderation actions:", replyMarkup: keyboard);
             }
             else
             {
-                await _bot.SendMessage(_adminId, stored.Text ?? "(no text)", replyMarkup: keyboard);
+                await _bot.SendMessage(_options.AdminId, stored.Text ?? "(no text)", replyMarkup: keyboard);
             }
         }
 
@@ -416,7 +407,7 @@ namespace FindIFBot.Services.Admin
                 replyMarkup: Keyboards.GetKeyboard(await _history.HasHistory(userId))
             );
 
-            _logger.Log(Component, LogType.Info, $"User cancelled find request | UserId: {userId} | MessageId: {messageId}");
+            await _logger.LogInfo(Component, $"User cancelled find request | UserId: {userId} | MessageId: {messageId}");
 
             var session = _sessions.Get(userId);
             session.State = UserState.Idle;
