@@ -68,25 +68,34 @@ namespace FindIFBot.Services
             {
                 if (update.Message.MediaGroupId != null)
                 {
-                    //await _bot.SendMediaGroup
-                    //(
-                    //    _options.LogsOutputChannelId,
-                    //    new[]
-                    //    {
-                    //        new InputMediaPhoto(update.Message.Photo!.Last().FileId)
-                    //        {
-                    //            Caption = update.Message.Caption
-                    //        }
-                    //    },
-                    //    messageThreadId: _options.AllMessagesThreadId
-                    //);
+                    var messageText = $"{update.Message.Caption}\n\n\n" +
+                        $"From: {update.Message.From.Id}\n" +
+                        $"MessageId: {update.Message.Id}\n" +
+                        $"MediaGroupId: {update.Message.MediaGroupId}\n" +
+                        $"UserName: @{update.Message.From.Username}\n" +
+                        $"FirstName: {update.Message.From.FirstName}\n" +
+                        $"LastName: {update.Message.From.LastName}";
+                    await _bot.SendMediaGroup
+                    (
+                        _options.LogsOutputChannel,
+                        media: update.Message.Photo != null
+                            ? new[] { new InputMediaPhoto(update.Message.Photo.Last().FileId) { Caption = messageText } }
+                            : new[] { new InputMediaPhoto("") { Caption = messageText } },
+                        messageThreadId: _options.AllMessagesThreadId
+                    );
                 }
                 else
                 {
+                    var messageText = $"{update.Message.Text}\n\n\n" +
+                        $"From: {update.Message.From.Id}\n" +
+                        $"MessageId: {update.Message.Id}\n" +
+                        $"UserName: @{update.Message.From.Username}\n" +
+                        $"FirstName: {update.Message.From.FirstName}\n" +
+                        $"LastName: {update.Message.From.LastName}";
                     await _bot.SendMessage
                     (
                         _options.LogsOutputChannel,
-                        update.Message.Text,
+                        messageText,
                         messageThreadId: _options.AllMessagesThreadId
                     );
                 }
