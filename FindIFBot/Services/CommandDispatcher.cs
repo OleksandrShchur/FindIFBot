@@ -338,7 +338,8 @@ namespace FindIFBot.Services
                 await _bot.SendMessage(
                     message.Chat.Id,
                     new AskHandler().Handle(),
-                    replyMarkup: new ReplyKeyboardRemove()
+                    replyMarkup: new ReplyKeyboardRemove(),
+                    parseMode: ParseMode.Html
                 );
 
                 return;

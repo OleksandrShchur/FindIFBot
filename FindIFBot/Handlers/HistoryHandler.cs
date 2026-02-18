@@ -1,5 +1,6 @@
 using FindIFBot.Domain;
 using FindIFBot.EF.Repositories;
+using FindIFBot.Helpers;
 using Telegram.Bot;
 using Telegram.Bot.Exceptions;
 using Telegram.Bot.Types;
@@ -11,6 +12,7 @@ namespace FindIFBot.Handlers
     public class HistoryHandler : IAsyncCommandHandler
     {
         private readonly IUserRequestHistoryRepository _history;
+
         public HistoryHandler(IUserRequestHistoryRepository history)
         {
             _history = history;
@@ -20,7 +22,6 @@ namespace FindIFBot.Handlers
         {
             var userId = message.From!.Id;
             var chatId = message.Chat.Id;
-
             var allRequests = await _history.GetByUserId(userId);
 
             if (!allRequests.Any())
@@ -28,8 +29,10 @@ namespace FindIFBot.Handlers
                 var initialMarkup = await BuildMarkup(userId);
                 await bot.SendMessage(
                     chatId,
-                    "У вас немає історії запитів.",
-                    replyMarkup: initialMarkup
+                    "📭 <b>У вас ще немає історії запитів.</b>\n\n" +
+                    "Натисніть кнопку нижче, щоб надіслати свій перший запит 👇",
+                    replyMarkup: initialMarkup,
+                    parseMode: ParseMode.Html
                 );
                 return;
             }
@@ -49,37 +52,31 @@ namespace FindIFBot.Handlers
             string approvedText = "";
             if (approved.Any())
             {
-                approvedText = "✅ Затверджені запити:\n\n";
+                approvedText = "✅ <b>Затверджені запити:</b>\n\n";
                 foreach (var (index, req) in approved.Index())
                 {
-                    approvedText += $"<code>- {index + 1}</code>\n";
+                    approvedText += $"<b>{index + 1}.</b>\n";
                     if (!string.IsNullOrEmpty(req.ChannelLink))
                     {
-                        approvedText += $"Посилання: {req.ChannelLink}\n";
+                        approvedText += $"🔗 <b>Посилання:</b> {req.ChannelLink}\n";
                     }
                     approvedText += "\n";
                 }
                 approvedText = approvedText.TrimEnd();
             }
 
-            var pendingText = "";
+            string pendingText = "";
             var pendingMessageIds = new List<int>();
-
             if (pending.Any())
             {
-                pendingText = "⏳ Запити на модерації:\n\n";
-
+                pendingText = "⏳ <b>Запити на модерації:</b>\n\n";
                 foreach (var (index, req) in pending.Index())
                 {
-                    var itemText = $"<code>- {index + 1}</code>\n";
-
-                    itemText += $"ID запиту: {req.UserMessageId}\n";
+                    var itemText = $"<b>{index + 1}.</b>\n";
+                    itemText += $"🆔 <b>ID запиту:</b> <code>{req.UserMessageId}</code>\n\n";
                     pendingMessageIds.Add(req.UserMessageId);
-
-                    itemText += "\n";
                     pendingText += itemText;
                 }
-
                 pendingText = pendingText.TrimEnd();
             }
 
@@ -110,7 +107,7 @@ namespace FindIFBot.Handlers
                 {
                     await bot.SendMessage(
                         chatId: chatId,
-                        text: $"⏳ Запит <code>{replyId}</code> очікує модерації",
+                        text: $"⏳ Ваш запит <code>{replyId}</code> все ще <b>очікує модерації</b>.",
                         replyParameters: new ReplyParameters()
                         {
                             MessageId = replyId
@@ -124,7 +121,8 @@ namespace FindIFBot.Handlers
                 {
                     await bot.SendMessage(
                         chatId: chatId,
-                        text: $"⏳ Запит <code>{replyId}</code> очікує модерації. (Оригінальне повідомлення видалено).",
+                        text: $"⏳ Запит <code>{replyId}</code> очікує модерації.\n\n" +
+                              "<i>(Оригінальне повідомлення було видалено)</i>",
                         parseMode: ParseMode.Html
                     );
                 }
@@ -134,21 +132,8 @@ namespace FindIFBot.Handlers
         private async Task<ReplyKeyboardMarkup> BuildMarkup(long userId)
         {
             var hasHistory = (await _history.GetByUserId(userId)).Any();
-            var keyboard = new List<KeyboardButton[]>
-            {
-                new KeyboardButton[] { "Розпочати пошук" }
-            };
-            if (hasHistory)
-            {
-                keyboard.Add(new KeyboardButton[] { "Історія запитів" });
-            }
-            keyboard.Add(new KeyboardButton[] { "Довідка" });
-
-            return new ReplyKeyboardMarkup(keyboard)
-            {
-                ResizeKeyboard = true,
-                OneTimeKeyboard = false
-            };
+            
+            return Keyboards.GetKeyboard(hasHistory);
         }
     }
 }

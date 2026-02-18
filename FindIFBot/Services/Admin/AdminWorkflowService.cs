@@ -85,16 +85,16 @@ namespace FindIFBot.Services.Admin
 
             switch (action)
             {
-                case "+find":
-                    await _logger.LogInfo(Component, $"Admin approved find request | UserId: {userId} | MessageId: {messageId}");
+                case "+ask":
+                    await _logger.LogInfo(Component, $"Admin approved ask request | UserId: {userId} | MessageId: {messageId}");
                     await PublishAsync(userId, stored);
                     break;
-                case "-find":
-                    await _logger.LogInfo(Component, $"Admin rejected find request | UserId: {userId} | MessageId: {messageId}");
+                case "-ask":
+                    await _logger.LogInfo(Component, $"Admin rejected ask request | UserId: {userId} | MessageId: {messageId}");
                     await RejectAsync(userId, messageId);
                     break;
-                case "?find":
-                    await _logger.LogInfo(Component, $"Admin marked find as duplicate | UserId: {userId} | MessageId: {messageId}");
+                case "?ask":
+                    await _logger.LogInfo(Component, $"Admin marked ask as duplicate | UserId: {userId} | MessageId: {messageId}");
                     await DuplicateAsync(userId, messageId);
                     break;
                 case "proceed":
@@ -115,7 +115,7 @@ namespace FindIFBot.Services.Admin
                     return;
                 case "cancel":
                     await _logger.LogInfo(Component, $"User cancelled submission | UserId: {userId} | MessageId: {messageId}");
-                    await CancelFindAsync(userId, messageId);
+                    await CancelAskAsync(userId, messageId);
                     await CleanupAsync(cb, messageId);
 
                     return;
@@ -127,7 +127,7 @@ namespace FindIFBot.Services.Admin
         public async Task SubmitAskAsync(StoredMessage stored)
         {
             await _logger.LogInfo(Component,
-                $"Submitting find request to moderation | UserId: {stored.UserId} | MessageId: {stored.MessageId} | Photos: {stored.Photos.Count}");
+                $"Submitting ask request to moderation | UserId: {stored.UserId} | MessageId: {stored.MessageId} | Photos: {stored.Photos.Count}");
 
             await _bot.SendMessage(
                 stored.ChatId,
@@ -254,18 +254,18 @@ namespace FindIFBot.Services.Admin
         private async Task SendToAdmin(StoredMessage stored, int messageId)
         {
             await _logger.LogInfo(Component,
-                $"Sending find request to admin | UserId: {stored.UserId} | MessageId: {messageId} | Photos: {stored.Photos.Count}");
+                $"Sending ask request to admin | UserId: {stored.UserId} | MessageId: {messageId} | Photos: {stored.Photos.Count}");
 
             var keyboard = new InlineKeyboardMarkup(new[]
             {
                 new[]
                 {
-                    InlineKeyboardButton.WithCallbackData("Approve post", $"+find|{stored.UserId}|{messageId}"),
-                    InlineKeyboardButton.WithCallbackData("Decline post", $"-find|{stored.UserId}|{messageId}")
+                    InlineKeyboardButton.WithCallbackData("Approve post", $"+ask|{stored.UserId}|{messageId}"),
+                    InlineKeyboardButton.WithCallbackData("Decline post", $"-ask|{stored.UserId}|{messageId}")
                 },
                 new[]
                 {
-                    InlineKeyboardButton.WithCallbackData("Duplicated post", $"?find|{stored.UserId}|{messageId}")
+                    InlineKeyboardButton.WithCallbackData("Duplicated post", $"?ask|{stored.UserId}|{messageId}")
                 }
             });
 
@@ -283,7 +283,7 @@ namespace FindIFBot.Services.Admin
             }
         }
 
-        private async Task CancelFindAsync(long userId, int messageId)
+        private async Task CancelAskAsync(long userId, int messageId)
         {
             await _bot.SendMessage(
                 userId,
@@ -292,7 +292,7 @@ namespace FindIFBot.Services.Admin
                 replyMarkup: Keyboards.GetKeyboard(await _history.HasHistory(userId))
             );
 
-            await _logger.LogInfo(Component, $"User cancelled find request | UserId: {userId} | MessageId: {messageId}");
+            await _logger.LogInfo(Component, $"User cancelled ask request | UserId: {userId} | MessageId: {messageId}");
 
             var session = _sessions.Get(userId);
             session.State = UserState.Idle;

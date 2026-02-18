@@ -2,9 +2,9 @@
 
 public class UnknownHandler : ICommandHandler
 {
-    private const string UnknownCommandMessage =
-        "Невідома команда. Спробуйте ввести доступні функції.";
-
     public string Handle() =>
-        $"{UnknownCommandMessage}\n\n{new HelpHandler().Handle()}";
+        "❓ <b>Невідома команда.</b>\n\n" +
+        "Я не зрозумів вашу команду 😕\n\n" +
+        "Ось що я вмію 👇\n\n" +
+        new HelpHandler().Handle();
 }
