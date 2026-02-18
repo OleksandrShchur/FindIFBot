@@ -131,8 +131,11 @@ namespace FindIFBot.Services.Admin
 
             await _bot.SendMessage(
                 stored.ChatId,
-                "Очікуйте на публікацію. Триває модерація.",
-                replyMarkup: Keyboards.GetKeyboard(true)
+                "⏳ <b>Запит відправлено на модерацію!</b>\n\n" +
+                "Очікуйте, будь ласка — наші модератори скоро перевірять ваш допис.\n" +
+                "Статус можна переглянути в будь-який момент за допомогою команди /history або кнопки «📋 Історія запитів» 👇",
+                replyMarkup: Keyboards.GetKeyboard(true),
+                parseMode: ParseMode.Html
             );
 
             var request = new UserRequest
@@ -166,7 +169,7 @@ namespace FindIFBot.Services.Admin
             }
             else
             {
-                var result = await _bot.SendMessage(_options.UserOutputChannel, stored.Text ?? "(no text)");
+                var result = await _bot.SendMessage(_options.UserOutputChannel, stored.Text ?? "📝 (тільки текст без вмісту)");
                 postText = TextUtils.GetTextPreview(result.Text);
                 postId = result.MessageId;
             }
@@ -175,7 +178,8 @@ namespace FindIFBot.Services.Admin
 
             await _bot.SendMessage(
                 userId,
-                $"Ваш пост опубліковано: <a href=\"{channelLink}\">{postText}</a>",
+                "🚀 <b>Готово!</b> Ваш пост уже в каналі!\n\n" +
+                $"<a href=\"{channelLink}\">👉 Переглянути публікацію</a>\n\n",
                 replyMarkup: Keyboards.GetKeyboard(await _history.HasHistory(userId)),
                 parseMode: ParseMode.Html
             );
@@ -199,9 +203,14 @@ namespace FindIFBot.Services.Admin
         {
             await _bot.SendMessage(
                 userId,
-                "Запит на публікацію відхилено.",
+                "❌ <b>Запит відхилено</b>\n\n" +
+                "На жаль, наші модератори вирішили не публікувати цей допис.\n" +
+                "Це могло статися через невідповідність правилам каналу або інші причини.\n\n" +
+                "Не засмучуйся — спробуй ще раз з іншим матеріалом! 🌱\n" +
+                "Статус усіх твоїх запитів завжди можна подивитись у /history",
                 replyParameters: new ReplyParameters { MessageId = messageId },
-                replyMarkup: Keyboards.GetKeyboard(await _history.HasHistory(userId))
+                replyMarkup: Keyboards.GetKeyboard(await _history.HasHistory(userId)),
+                parseMode: ParseMode.Html
             );
 
             await _logger.LogInfo(Component, $"Request rejected | UserId: {userId} | MessageId: {messageId}");
@@ -221,9 +230,14 @@ namespace FindIFBot.Services.Admin
         {
             await _bot.SendMessage(
                 userId,
-                "Схожий запит вже опубліковано. Скористайтесь пошуком у каналі.",
+                "🔍 <b>Схожий допис уже є в каналі</b>\n\n" +
+                "На жаль, ми вже публікували дуже подібний запит раніше.\n" +
+                "Щоб не дублювати контент, перевір, будь ласка, пошук у каналі — можливо, відповідь уже там 🌟\n\n" +
+                "Якщо хочеш надіслати щось нове чи по-іншому — пиши, з радістю розглянемо! 🚀\n" +
+                "Статус запитів → /history або кнопка «📋 Історія запитів»",
                 replyParameters: new ReplyParameters { MessageId = messageId },
-                replyMarkup: Keyboards.GetKeyboard(await _history.HasHistory(userId))
+                replyMarkup: Keyboards.GetKeyboard(await _history.HasHistory(userId)),
+                parseMode: ParseMode.Html
             );
 
             await _logger.LogInfo(Component, $"Request marked as duplicate | UserId: {userId} | MessageId: {messageId}");
@@ -279,7 +293,7 @@ namespace FindIFBot.Services.Admin
             }
             else
             {
-                await _bot.SendMessage(_options.AdminId, stored.Text ?? "(no text)", replyMarkup: keyboard);
+                await _bot.SendMessage(_options.AdminId, stored.Text ?? "📝 (тільки текст без вмісту)", replyMarkup: keyboard);
             }
         }
 
@@ -287,9 +301,14 @@ namespace FindIFBot.Services.Admin
         {
             await _bot.SendMessage(
                 userId,
-                "Публікацію скасовано.",
+                "❌ <b>Публікацію скасовано</b>\n\n" +
+                "Ваш запит було успішно скасовано.\n" +
+                "Нічого не було надіслано на модерацію і нічого не опубліковано.\n\n" +
+                "Якщо передумали або хочете надіслати щось інше — просто почніть новий запит!\n" +
+                "Переглянути історію запитів: /history або кнопка «📋 Історія запитів» нижче",
                 replyParameters: new ReplyParameters { MessageId = messageId },
-                replyMarkup: Keyboards.GetKeyboard(await _history.HasHistory(userId))
+                replyMarkup: Keyboards.GetKeyboard(await _history.HasHistory(userId)),
+                parseMode: ParseMode.Html
             );
 
             await _logger.LogInfo(Component, $"User cancelled ask request | UserId: {userId} | MessageId: {messageId}");
