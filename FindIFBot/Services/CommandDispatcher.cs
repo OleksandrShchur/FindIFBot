@@ -1,5 +1,4 @@
-﻿using FindIFBot.Configuration;
-using FindIFBot.Domain;
+﻿using FindIFBot.Domain;
 using FindIFBot.EF;
 using FindIFBot.EF.Entities;
 using FindIFBot.EF.Repositories;
@@ -8,7 +7,6 @@ using FindIFBot.Helpers;
 using FindIFBot.Helpers.Logs;
 using FindIFBot.Persistence;
 using FindIFBot.Services.Admin;
-using Microsoft.Extensions.Options;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
@@ -22,12 +20,11 @@ namespace FindIFBot.Services
         private readonly IUserSessionRepository _sessions;
         private readonly IMessageStore _messages;
         private readonly IAdminWorkflowService _admin;
-        private readonly IStartHandler _startHandler;
-        private readonly IHistoryHandler _historyHandler;
+        private readonly IAsyncCommandHandler _startHandler;
+        private readonly IAsyncCommandHandler _historyHandler;
         private readonly IUserRequestHistoryRepository _history;
         private readonly IAppLogger<CommandDispatcher> _logger;
         private readonly IServiceScopeFactory _scopeFactory;
-        private readonly TelegramOptions _options;
 
         private static readonly Dictionary<string, List<Message>> _mediaBuffer = new();
         private static readonly object _lock = new();
@@ -38,12 +35,11 @@ namespace FindIFBot.Services
             IUserSessionRepository sessions,
             IMessageStore messages,
             IAdminWorkflowService admin,
-            IStartHandler startHandler,
-            IHistoryHandler historyHandler,
+            IAsyncCommandHandler startHandler,
+            IAsyncCommandHandler historyHandler,
             IUserRequestHistoryRepository history,
             IAppLogger<CommandDispatcher> logger,
-            IServiceScopeFactory scopeFactory,
-            IOptions<TelegramOptions> options)
+            IServiceScopeFactory scopeFactory)
         {
             _bot = bot;
             _sessions = sessions;
@@ -54,7 +50,6 @@ namespace FindIFBot.Services
             _history = history;
             _logger = logger;
             _scopeFactory = scopeFactory;
-            _options = options.Value;
         }
 
         public async Task DispatchAsync(Update update)
@@ -201,14 +196,13 @@ namespace FindIFBot.Services
 
             var photos = orderedMessages
                 .Where(m => m.Photo != null)
-                .Select(m => m.Photo.Last().FileId)
+                .Select(m => m.Photo!.Last().FileId)
                 .ToList();
 
             var totalMediaCount = orderedMessages.Count;
             var ignoredCount = totalMediaCount - photos.Count;
 
-            bool isSubmissionState = session.State == UserState.WaitingForFindQuery
-                || session.State == UserState.WaitingForAdContent;
+            bool isSubmissionState = session.State == UserState.WaitingForAskQuery;
 
             if (isSubmissionState)
             {
@@ -272,13 +266,8 @@ namespace FindIFBot.Services
 
             switch (session.State)
             {
-                case UserState.WaitingForFindQuery:
-                    await PrepareFindConfirmationAsync(captionMessage, session);
-                    break;
-                case UserState.WaitingForAdContent:
-                    await _admin.SubmitAdAsync(captionMessage);
-                    session.State = UserState.Idle;
-                    _sessions.Save(session);
+                case UserState.WaitingForAskQuery:
+                    await PrepareAskConfirmationAsync(captionMessage, session);
                     break;
             }
         }
@@ -305,7 +294,7 @@ namespace FindIFBot.Services
                 $"Stored single message | UserId: {userId} | MessageId: {message.MessageId} | Photos: {photos.Count} | TextLength: {(text?.Length ?? 0)}");
             
             var normalized = (text ?? string.Empty).ToLowerInvariant();
-            bool isSubmissionState = session.State == UserState.WaitingForFindQuery || session.State == UserState.WaitingForAdContent;
+            bool isSubmissionState = session.State == UserState.WaitingForAskQuery;
             
             if (isSubmissionState)
             {
@@ -336,75 +325,26 @@ namespace FindIFBot.Services
             }
             switch (session.State)
             {
-                case UserState.WaitingForFindQuery:
-                    await PrepareFindConfirmationAsync(message, session);
-
-                    return;
-                case UserState.WaitingForAdContent:
-                    await _admin.SubmitAdAsync(message);
-                    session.State = UserState.Idle;
-                    _sessions.Save(session);
-
-                    return;
-                case UserState.WaitingForAdvice:
-                    await HandleAdviceAsync(message);
-                    session.State = UserState.Idle;
-                    _sessions.Save(session);
+                case UserState.WaitingForAskQuery:
+                    await PrepareAskConfirmationAsync(message, session);
 
                     return;
             }
-            if (IsFindCommand(normalized))
+            if (IsAskCommand(normalized))
             {
-                session.State = UserState.WaitingForFindQuery;
+                session.State = UserState.WaitingForAskQuery;
                 _sessions.Save(session);
-                await _logger.LogInfo(Component, $"User started find flow | UserId: {userId}");
+                await _logger.LogInfo(Component, $"User started ask flow | UserId: {userId}");
                 await _bot.SendMessage(
                     message.Chat.Id,
-                    new FindHandler().Handle(),
+                    new AskHandler().Handle(),
                     replyMarkup: new ReplyKeyboardRemove()
                 );
 
                 return;
             }
-            if (IsAdsCommand(normalized))
-            {
-                session.State = UserState.WaitingForAdContent;
-                _sessions.Save(session);
-                await _logger.LogInfo(Component, $"User started ads flow | UserId: {userId}");
-                await _bot.SendMessage(
-                    message.Chat.Id,
-                    new AdsHandler().Handle(),
-                    replyMarkup: new ReplyKeyboardRemove(),
-                    parseMode: ParseMode.Html
-                );
 
-                return;
-            }
-            if (IsAdviceCommand(normalized))
-            {
-                session.State = UserState.WaitingForAdvice;
-                _sessions.Save(session);
-                await _bot.SendMessage(
-                    message.Chat.Id,
-                    new IdeasHandler().Handle(),
-                    replyMarkup: new ReplyKeyboardRemove(),
-                    parseMode: ParseMode.Html
-                );
-                return;
-            }
             await HandleStatelessCommandAsync(message, normalized);
-        }
-
-        private async Task HandleAdviceAsync(Message message)
-        {
-            var userId = message.From!.Id;
-            var hasHistory = await _history.HasHistory(userId);
-            await _logger.LogInfo(Component, $"Advice received | UserId: {userId}");
-            await _bot.SendMessage(
-                message.Chat.Id,
-                "Дякуємо за вашу ідею! Ми її опрацюємо.",
-                replyMarkup: Keyboards.GetKeyboard(hasHistory)
-            );
         }
 
         private async Task HandleStatelessCommandAsync(Message message, string normalized)
@@ -419,8 +359,7 @@ namespace FindIFBot.Services
             ICommandHandler handler = normalized switch
             {
                 "/help" or "довідка" => new HelpHandler(),
-                "/ads_rule" or "/ads-rules" or "правила розміщення реклами" => new AdsRulesHandler(),
-                "/donate" or "підтримати нас" => new SupportUsHandler(),
+                "/support_us" or "підтримати нас" => new SupportUsHandler(),
                 _ => new UnknownHandler()
             };
 
@@ -433,19 +372,13 @@ namespace FindIFBot.Services
             );
         }
 
-        private static bool IsFindCommand(string normalized) =>
-            normalized == "/find" || normalized == "розпочати пошук";
+        private static bool IsAskCommand(string normalized) =>
+            normalized == "/ask" || normalized == "запитати";
 
-        private static bool IsAdsCommand(string normalized) =>
-            normalized == "/ads" || normalized == "розмістити рекламу";
-
-        private static bool IsAdviceCommand(string normalized) =>
-            normalized == "/advice" || normalized == "запропонувати покращення";
-
-        private async Task PrepareFindConfirmationAsync(Message message, UserSession session)
+        private async Task PrepareAskConfirmationAsync(Message message, UserSession session)
         {
             await _logger.LogInfo(Component,
-                $"Preparing find confirmation | UserId: {message.From!.Id} | MessageId: {message.MessageId}");
+                $"Preparing ask confirmation | UserId: {message.From!.Id} | MessageId: {message.MessageId}");
             if (!_messages.TryGet(message.MessageId, out var stored))
             {
                 await _logger.LogError(Component,
@@ -474,9 +407,9 @@ namespace FindIFBot.Services
             });
             await _bot.SendMessage(message.Chat.Id, "Надіслати запит з повідомлення на перегляд адмінам?", replyMarkup: keyboard);
             await _logger.LogInfo(Component,
-                $"Find confirmation sent | UserId: {message.From!.Id} | MessageId: {message.MessageId} | Photos: {stored.Photos.Count}");
+                $"Ask confirmation sent | UserId: {message.From!.Id} | MessageId: {message.MessageId} | Photos: {stored.Photos.Count}");
             
-            session.State = UserState.ConfirmFindContent;
+            session.State = UserState.ConfirmAskContent;
             _sessions.Save(session);
         }
 

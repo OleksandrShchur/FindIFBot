@@ -6,7 +6,7 @@ using Telegram.Bot.Types.Enums;
 
 namespace FindIFBot.Handlers
 {
-    public class StartHandler : IStartHandler
+    public class StartHandler : IAsyncCommandHandler
     {
         private readonly IUserRequestHistoryRepository _history;
 
@@ -16,8 +16,8 @@ namespace FindIFBot.Handlers
         }
 
         public async Task HandleAsync(
-        ITelegramBotClient bot,
-        Message message)
+            ITelegramBotClient bot,
+            Message message)
         {
             await bot.SendMessage(
                 message.Chat.Id,

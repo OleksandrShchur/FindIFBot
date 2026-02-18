@@ -18,7 +18,6 @@ namespace FindIFBot.Services.Admin
     {
         private readonly ITelegramBotClient _bot;
         private readonly IMessageStore _messages;
-        private readonly IAdsPricingService _pricing;
         private readonly IUserSessionRepository _sessions;
         private readonly IUserRequestHistoryRepository _history;
         private readonly IAppLogger<AdminWorkflowService> _logger;
@@ -29,7 +28,6 @@ namespace FindIFBot.Services.Admin
         public AdminWorkflowService(
             ITelegramBotClient bot,
             IMessageStore messages,
-            IAdsPricingService pricing,
             IUserSessionRepository sessions,
             IUserRequestHistoryRepository history,
             IConfiguration config,
@@ -38,7 +36,6 @@ namespace FindIFBot.Services.Admin
         {
             _bot = bot;
             _messages = messages;
-            _pricing = pricing;
             _sessions = sessions;
             _history = history;
             _logger = logger;
@@ -100,25 +97,9 @@ namespace FindIFBot.Services.Admin
                     await _logger.LogInfo(Component, $"Admin marked find as duplicate | UserId: {userId} | MessageId: {messageId}");
                     await DuplicateAsync(userId, messageId);
                     break;
-                case "+ads":
-                    await _logger.LogInfo(Component, $"Admin approved ads | UserId: {userId} | MessageId: {messageId}");
-                    await ApproveAdsAsync(userId, messageId, stored);
-                    return;
-                case "postAds":
-                    await _logger.LogInfo(Component, $"Admin published ads after payment | UserId: {userId} | MessageId: {messageId}");
-                    await PublishAsync(userId, stored);
-                    break;
-                case "-ads":
-                    await _logger.LogInfo(Component, $"Admin rejected ads | UserId: {userId} | MessageId: {messageId}");
-                    await RejectAsync(userId, messageId);
-                    break;
-                case "<money":
-                    await _logger.LogInfo(Component, $"Insufficient payment for ads | UserId: {userId} | MessageId: {messageId}");
-                    await InsufficientMoneyAsync(userId, messageId);
-                    return;
                 case "proceed":
                     await _logger.LogInfo(Component, $"User confirmed submission | UserId: {userId} | MessageId: {messageId}");
-                    await SubmitFindAsync(stored);
+                    await SubmitAskAsync(stored);
                     var session = _sessions.Get(userId);
                     session.State = UserState.Idle;
                     _sessions.Save(session);
@@ -143,7 +124,7 @@ namespace FindIFBot.Services.Admin
             await CleanupAsync(cb, messageId);
         }
 
-        public async Task SubmitFindAsync(StoredMessage stored)
+        public async Task SubmitAskAsync(StoredMessage stored)
         {
             await _logger.LogInfo(Component,
                 $"Submitting find request to moderation | UserId: {stored.UserId} | MessageId: {stored.MessageId} | Photos: {stored.Photos.Count}");
@@ -166,52 +147,6 @@ namespace FindIFBot.Services.Admin
             await _history.Add(request);
 
             await SendToAdmin(stored, stored.MessageId);
-        }
-
-        public async Task SubmitAdAsync(Message message)
-        {
-            if (!_messages.TryGet(message.MessageId, out var stored))
-            {
-                await _logger.LogError(Component,
-                    $"Stored message not found on ad submission | MessageId: {message.MessageId}");
-                return;
-            }
-
-            await _logger.LogInfo(Component, $"Ad submitted by user | UserId: {stored.UserId} | MessageId: {stored.MessageId} | Photos: {stored.Photos.Count}");
-
-            await _bot.SendMessage(
-                message.Chat.Id,
-                "Матеріал передано адміністраторам.",
-                replyMarkup: Keyboards.GetKeyboard(true)
-            );
-
-            var request = new UserRequest
-            {
-                Id = Guid.NewGuid(),
-                UserId = stored.UserId,
-                Status = RequestStatus.Pending,
-                SubmittedAt = DateTime.UtcNow,
-                UserMessageId = stored.MessageId
-            };
-
-            await _history.Add(request);
-
-            var keyboard = BuildAdsKeyboard(message);
-
-            if (stored.Photos.Count > 0)
-            {
-                var media = stored.Photos
-                    .Select((id, i) => new InputMediaPhoto(id) { Caption = i == 0 ? stored.Text : null })
-                    .ToArray();
-                await _bot.SendMediaGroup(_options.AdminId, media);
-                await _bot.SendMessage(_options.AdminId, "Moderation actions:", replyMarkup: keyboard);
-            }
-            else
-            {
-                await _bot.SendMessage(_options.AdminId, stored.Text ?? "(no text)", replyMarkup: keyboard);
-            }
-
-            await _logger.LogInfo(Component, $"Ad forwarded to admin for moderation | UserId: {stored.UserId} | MessageId: {stored.MessageId}");
         }
 
         private async Task PublishAsync(long userId, StoredMessage stored)
@@ -304,46 +239,6 @@ namespace FindIFBot.Services.Admin
             }
         }
 
-        private async Task ApproveAdsAsync(long userId, int messageId, StoredMessage stored)
-        {
-            var count = 0;
-            try { count = await _bot.GetChatMemberCount(_options.UserOutputChannel); } catch { }
-            var price = _pricing.CalculatePrice(count);
-
-            await _logger.LogInfo(Component, $"Ads approved, price calculated | UserId: {userId} | MessageId: {messageId} | Price: {price} грн");
-
-            await _bot.SendMessage(
-                userId,
-                $"Ціна публікації — <code>{price}</code> грн.",
-                replyParameters: new ReplyParameters { MessageId = messageId },
-                parseMode: ParseMode.Html
-            );
-
-            var keyboard = new InlineKeyboardMarkup(new[]
-            {
-                new[] { InlineKeyboardButton.WithCallbackData($"Post ad ({price})", $"postAds|{userId}|{messageId}") },
-                new[] { InlineKeyboardButton.WithCallbackData("No full sum", $"<money|{userId}|{messageId}") }
-            });
-
-            await _bot.SendMessage(
-                _options.AdminId,
-                $"Реклама схвалена. Ціна: <code>{price}</code> грн. Очікуємо оплату для публікації.",
-                replyMarkup: keyboard,
-                parseMode: ParseMode.Html
-            );
-        }
-
-        private async Task InsufficientMoneyAsync(long userId, int messageId)
-        {
-            await _bot.SendMessage(
-                userId,
-                "Сума оплати некоректна.",
-                replyParameters: new ReplyParameters { MessageId = messageId }
-            );
-
-            await _logger.LogInfo(Component, $"Insufficient payment reported | UserId: {userId} | MessageId: {messageId}");
-        }
-
         private async Task CleanupAsync(CallbackQuery cb, int messageId)
         {
             _messages.Remove(messageId);
@@ -387,16 +282,6 @@ namespace FindIFBot.Services.Admin
                 await _bot.SendMessage(_options.AdminId, stored.Text ?? "(no text)", replyMarkup: keyboard);
             }
         }
-
-        private InlineKeyboardMarkup BuildAdsKeyboard(Message msg) =>
-            new(new[]
-            {
-                new[]
-                {
-                    InlineKeyboardButton.WithCallbackData("Approve ads", $"+ads|{msg.From!.Id}|{msg.MessageId}"),
-                    InlineKeyboardButton.WithCallbackData("Decline ads", $"-ads|{msg.From!.Id}|{msg.MessageId}")
-                }
-            });
 
         private async Task CancelFindAsync(long userId, int messageId)
         {

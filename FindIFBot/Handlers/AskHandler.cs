@@ -1,6 +1,6 @@
 ﻿namespace FindIFBot.Handlers
 {
-    public class FindHandler : ICommandHandler
+    public class AskHandler : ICommandHandler
     {
         public string Handle() => "Сформулюйте ваш запит, за потреби можете прикріпити до 10 зображень. " +
             "Напишіть усе одним повідомленням і наш бот опрацює ваше повідомлення. Відео, гіфки та будь-які інші медіа файли " +

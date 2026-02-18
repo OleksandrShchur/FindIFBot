@@ -8,7 +8,7 @@ using Telegram.Bot.Types.ReplyMarkups;
 
 namespace FindIFBot.Handlers
 {
-    public class HistoryHandler : IHistoryHandler
+    public class HistoryHandler : IAsyncCommandHandler
     {
         private readonly IUserRequestHistoryRepository _history;
         public HistoryHandler(IUserRequestHistoryRepository history)
