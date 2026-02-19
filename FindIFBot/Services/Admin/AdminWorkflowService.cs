@@ -132,8 +132,7 @@ namespace FindIFBot.Services.Admin
             await _bot.SendMessage(
                 stored.ChatId,
                 "⏳ <b>Запит відправлено на модерацію!</b>\n\n" +
-                "Очікуйте, будь ласка — наші модератори скоро перевірять ваш допис.\n" +
-                "Статус можна переглянути в будь-який момент за допомогою команди /history або кнопки «📋 Історія запитів» 👇",
+                "Очікуйте, будь ласка — наші модератори скоро перевірять ваш допис.\n",
                 replyMarkup: Keyboards.GetKeyboard(true),
                 parseMode: ParseMode.Html
             );
@@ -156,21 +155,28 @@ namespace FindIFBot.Services.Admin
         {
             var channelLink = string.Empty;
             var postId = 0;
-            var postText = string.Empty;
+            var postTextPreview = string.Empty;
+            var postText = PostTemplate.Build(stored.Text, _options);
 
             if (stored.Photos.Count > 0)
             {
                 var media = stored.Photos
-                    .Select((id, i) => new InputMediaPhoto(id) { Caption = i == 0 ? stored.Text : null })
+                    .Select((id, i) => new InputMediaPhoto(id) 
+                    { 
+                        Caption = i == 0 ? postText : null, 
+                        ParseMode = ParseMode.Html 
+                    })
                     .ToArray();
                 var result = await _bot.SendMediaGroup(_options.UserOutputChannel, media);
-                postText = TextUtils.GetTextPreview(result.First().Caption);
+
+                postTextPreview = TextUtils.GetTextPreview(stored.Text);
                 postId = result.First().MessageId;
             }
             else
             {
-                var result = await _bot.SendMessage(_options.UserOutputChannel, stored.Text ?? "📝 (тільки текст без вмісту)");
-                postText = TextUtils.GetTextPreview(result.Text);
+                var result = await _bot.SendMessage(_options.UserOutputChannel, postText);
+
+                postTextPreview = TextUtils.GetTextPreview(stored.Text);
                 postId = result.MessageId;
             }
 
