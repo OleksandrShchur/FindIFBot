@@ -439,9 +439,7 @@ namespace FindIFBot.Services
 
             await _bot.SendMessage(
                 message.Chat.Id,
-                "📤 <b>Надіслати цей запит адмінам на перевірку?</b>\n\n" +
-                "Після натискання «Надіслати» ваш запит потрапить на модерацію.\n" +
-                "Ви завжди можете переглянути статус у /history",
+                "📤 <b>Надіслати цей запит адмінам на перевірку?</b>\n\n",
                 replyMarkup: keyboard,
                 parseMode: ParseMode.Html
             );
