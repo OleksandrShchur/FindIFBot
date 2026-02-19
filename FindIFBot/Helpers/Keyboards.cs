@@ -1,5 +1,4 @@
-﻿using System.Collections.Generic;
-using Telegram.Bot.Types.ReplyMarkups;
+﻿using Telegram.Bot.Types.ReplyMarkups;
 
 namespace FindIFBot.Helpers
 {
@@ -9,15 +8,16 @@ namespace FindIFBot.Helpers
         {
             var keyboard = new List<KeyboardButton[]>
             {
-                new KeyboardButton[] { "Розпочати пошук" }
+                new KeyboardButton[] { "📨 Надіслати запит" }
             };
 
             if (hasHistory)
             {
-                keyboard.Add(new KeyboardButton[] { "Історія запитів" });
+                keyboard.Add(new KeyboardButton[] { "📋 Історія запитів" });
             }
 
-            keyboard.Add(new KeyboardButton[] { "Довідка" });
+            keyboard.Add(new KeyboardButton[] { "ℹ️ Довідка" });
+            keyboard.Add(new KeyboardButton[] { "❤️ Підтримати нас" });
 
             return new ReplyKeyboardMarkup(keyboard)
             {

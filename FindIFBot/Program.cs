@@ -59,12 +59,11 @@ builder.Services.AddScoped<IUserRequestHistoryRepository, UserRequestHistoryRepo
 // Handlers / workflows
 builder.Services.AddScoped<ICommandDispatcher, CommandDispatcher>();
 builder.Services.AddScoped<IAdminWorkflowService, AdminWorkflowService>();
-builder.Services.AddScoped<IStartHandler, StartHandler>();
-builder.Services.AddScoped<IHistoryHandler, HistoryHandler>();
+builder.Services.AddScoped<IAsyncCommandHandler, StartHandler>();
+builder.Services.AddScoped<IAsyncCommandHandler, HistoryHandler>();
 
 // Singletons
 builder.Services.AddSingleton(typeof(IAppLogger<>), typeof(AppLogger<>));
-builder.Services.AddSingleton<IAdsPricingService, AdsPricingService>();
 builder.Services.AddSingleton<IMessageStore, InMemoryMessageStore>();
 
 // OpenAPI

@@ -6,7 +6,6 @@ namespace FindIFBot.Services.Admin
     public interface IAdminWorkflowService
     {
         Task HandleCallbackAsync(CallbackQuery callback);
-        Task SubmitFindAsync(StoredMessage stored);
-        Task SubmitAdAsync(Message message);
+        Task SubmitAskAsync(StoredMessage stored);
     }
 }

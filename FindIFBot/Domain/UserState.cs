@@ -3,10 +3,7 @@
     public enum UserState
     {
         Idle,
-        WaitingForFindQuery,
-        WaitingForAdContent,
-        WaitingForAdvice,
-        ConfirmFindContent,
-        ConfirmAdContent
+        WaitingForAskQuery,
+        ConfirmAskContent,
     }
 }

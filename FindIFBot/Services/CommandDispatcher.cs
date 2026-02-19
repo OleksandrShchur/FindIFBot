@@ -1,5 +1,4 @@
-﻿using FindIFBot.Configuration;
-using FindIFBot.Domain;
+﻿using FindIFBot.Domain;
 using FindIFBot.EF;
 using FindIFBot.EF.Entities;
 using FindIFBot.EF.Repositories;
@@ -8,7 +7,6 @@ using FindIFBot.Helpers;
 using FindIFBot.Helpers.Logs;
 using FindIFBot.Persistence;
 using FindIFBot.Services.Admin;
-using Microsoft.Extensions.Options;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
@@ -22,12 +20,11 @@ namespace FindIFBot.Services
         private readonly IUserSessionRepository _sessions;
         private readonly IMessageStore _messages;
         private readonly IAdminWorkflowService _admin;
-        private readonly IStartHandler _startHandler;
-        private readonly IHistoryHandler _historyHandler;
+        private readonly IAsyncCommandHandler _startHandler;
+        private readonly IAsyncCommandHandler _historyHandler;
         private readonly IUserRequestHistoryRepository _history;
         private readonly IAppLogger<CommandDispatcher> _logger;
         private readonly IServiceScopeFactory _scopeFactory;
-        private readonly TelegramOptions _options;
 
         private static readonly Dictionary<string, List<Message>> _mediaBuffer = new();
         private static readonly object _lock = new();
@@ -38,23 +35,20 @@ namespace FindIFBot.Services
             IUserSessionRepository sessions,
             IMessageStore messages,
             IAdminWorkflowService admin,
-            IStartHandler startHandler,
-            IHistoryHandler historyHandler,
+            IEnumerable<IAsyncCommandHandler> handlers,
             IUserRequestHistoryRepository history,
             IAppLogger<CommandDispatcher> logger,
-            IServiceScopeFactory scopeFactory,
-            IOptions<TelegramOptions> options)
+            IServiceScopeFactory scopeFactory)
         {
             _bot = bot;
             _sessions = sessions;
             _messages = messages;
             _admin = admin;
-            _startHandler = startHandler;
-            _historyHandler = historyHandler;
+            _startHandler = handlers.OfType<StartHandler>().Single();
+            _historyHandler = handlers.OfType<HistoryHandler>().Single();
             _history = history;
             _logger = logger;
             _scopeFactory = scopeFactory;
-            _options = options.Value;
         }
 
         public async Task DispatchAsync(Update update)
@@ -187,7 +181,10 @@ namespace FindIFBot.Services
             await HandleSingleMessageAsync(message, session);
         }
 
-        private async Task HandleMediaGroupAsync(List<Message> messages, UserSession session, IUserRequestHistoryRepository freshHistory)
+        private async Task HandleMediaGroupAsync(
+            List<Message> messages,
+            UserSession session,
+            IUserRequestHistoryRepository freshHistory)
         {
             var orderedMessages = messages.OrderBy(m => m.MessageId).ToList();
             var captionMessage = orderedMessages.FirstOrDefault(m => !string.IsNullOrEmpty(m.Caption))
@@ -196,19 +193,17 @@ namespace FindIFBot.Services
             var chatId = captionMessage.Chat.Id;
             var userId = captionMessage.From!.Id;
 
-            // Use the fresh repository passed from background scope
             var hasHistory = await freshHistory.HasHistory(userId);
 
             var photos = orderedMessages
                 .Where(m => m.Photo != null)
-                .Select(m => m.Photo.Last().FileId)
+                .Select(m => m.Photo!.Last().FileId)
                 .ToList();
 
             var totalMediaCount = orderedMessages.Count;
             var ignoredCount = totalMediaCount - photos.Count;
 
-            bool isSubmissionState = session.State == UserState.WaitingForFindQuery
-                || session.State == UserState.WaitingForAdContent;
+            bool isSubmissionState = session.State == UserState.WaitingForAskQuery;
 
             if (isSubmissionState)
             {
@@ -216,12 +211,16 @@ namespace FindIFBot.Services
                 {
                     await _logger.LogWarning(Component,
                         $"Validation failed: too many photos | UserId: {userId} | Photos: {photos.Count}");
+
                     await _bot.SendMessage(
                         chatId,
-                        "<b>Помилка</b>: забагато фотографій (<b>максимум 10</b> в одному запиті). Будь ласка, надішліть менше.",
+                        "❌ <b>Помилка:</b> забагато фотографій\n" +
+                        $"<b>Максимум дозволено:</b> 10 фото в одному запиті\n\n" +
+                        "Будь ласка, надішліть менше.",
                         replyMarkup: Keyboards.GetKeyboard(hasHistory),
                         parseMode: ParseMode.Html
                     );
+
                     session.State = UserState.Idle;
                     _sessions.Save(session);
                     return;
@@ -231,10 +230,12 @@ namespace FindIFBot.Services
                 {
                     await _logger.LogWarning(Component,
                         $"Ignored non-photo media in album | UserId: {userId} | Ignored: {ignoredCount} | Total: {totalMediaCount}");
+
                     await _bot.SendMessage(
                         chatId,
-                        $"<b>Увага</b>: з {totalMediaCount} елементів альбому оброблено тільки {photos.Count} фото. " +
-                        $"Відео, гіфки та інші медіа <b>ігноруються</b>.",
+                        "⚠️ <b>Увага:</b> в альбомі є не-фото елементи\n\n" +
+                        $"З {totalMediaCount} файлів оброблено тільки <b>{photos.Count} фото</b>.\n" +
+                        "Відео, GIF, документи та інші типи <b>ігноруються</b>.",
                         replyMarkup: Keyboards.GetKeyboard(hasHistory),
                         parseMode: ParseMode.Html
                     );
@@ -244,12 +245,15 @@ namespace FindIFBot.Services
                 {
                     await _logger.LogWarning(Component,
                         $"Validation failed: no photos in album | UserId: {userId}");
+
                     await _bot.SendMessage(
                         chatId,
-                        "<b>Помилка</b>: в альбомі немає фото. Надішліть альбом з фотографіями.",
+                        "❌ <b>Помилка:</b> в альбомі немає фотографій\n\n" +
+                        "Надішліть, будь ласка, альбом саме з фото.",
                         replyMarkup: Keyboards.GetKeyboard(hasHistory),
                         parseMode: ParseMode.Html
                     );
+
                     session.State = UserState.Idle;
                     _sessions.Save(session);
                     return;
@@ -268,17 +272,13 @@ namespace FindIFBot.Services
             _messages.Store(captionMessage.MessageId, stored);
 
             await _logger.LogInfo(Component,
-                $"Stored media group | UserId: {userId} | MessageId: {captionMessage.MessageId} | Photos: {photos.Count} | Ignored: {ignoredCount} | CaptionLength: {(captionMessage.Caption?.Length ?? 0)}");
+                $"Stored media group | UserId: {userId} | MessageId: {captionMessage.MessageId} | " +
+                $"Photos: {photos.Count} | Ignored: {ignoredCount} | CaptionLength: {(captionMessage.Caption?.Length ?? 0)}");
 
             switch (session.State)
             {
-                case UserState.WaitingForFindQuery:
-                    await PrepareFindConfirmationAsync(captionMessage, session);
-                    break;
-                case UserState.WaitingForAdContent:
-                    await _admin.SubmitAdAsync(captionMessage);
-                    session.State = UserState.Idle;
-                    _sessions.Save(session);
+                case UserState.WaitingForAskQuery:
+                    await PrepareAskConfirmationAsync(captionMessage, session);
                     break;
             }
         }
@@ -305,7 +305,7 @@ namespace FindIFBot.Services
                 $"Stored single message | UserId: {userId} | MessageId: {message.MessageId} | Photos: {photos.Count} | TextLength: {(text?.Length ?? 0)}");
             
             var normalized = (text ?? string.Empty).ToLowerInvariant();
-            bool isSubmissionState = session.State == UserState.WaitingForFindQuery || session.State == UserState.WaitingForAdContent;
+            bool isSubmissionState = session.State == UserState.WaitingForAskQuery;
             
             if (isSubmissionState)
             {
@@ -317,7 +317,9 @@ namespace FindIFBot.Services
                         $"Validation failed: non-photo media in submission | UserId: {userId} | MessageId: {message.MessageId}");
                     await _bot.SendMessage(
                         message.Chat.Id,
-                        "<b>Помилка</b>: надіслано не фото (відео, документ тощо). Підтримуємо тільки фотографії.",
+                        "❌ <b>Помилка:</b> надіслано не фото\n\n" +
+                        "Ми підтримуємо <b>тільки фотографії</b>.\n" +
+                        "Відео, документи, GIF, стікери та інші типи файлів зараз не обробляються.",
                         replyMarkup: Keyboards.GetKeyboard(hasHistory),
                         parseMode: ParseMode.Html
                     );
@@ -336,91 +338,42 @@ namespace FindIFBot.Services
             }
             switch (session.State)
             {
-                case UserState.WaitingForFindQuery:
-                    await PrepareFindConfirmationAsync(message, session);
-
-                    return;
-                case UserState.WaitingForAdContent:
-                    await _admin.SubmitAdAsync(message);
-                    session.State = UserState.Idle;
-                    _sessions.Save(session);
-
-                    return;
-                case UserState.WaitingForAdvice:
-                    await HandleAdviceAsync(message);
-                    session.State = UserState.Idle;
-                    _sessions.Save(session);
+                case UserState.WaitingForAskQuery:
+                    await PrepareAskConfirmationAsync(message, session);
 
                     return;
             }
-            if (IsFindCommand(normalized))
+            if (IsAskCommand(normalized))
             {
-                session.State = UserState.WaitingForFindQuery;
+                session.State = UserState.WaitingForAskQuery;
                 _sessions.Save(session);
-                await _logger.LogInfo(Component, $"User started find flow | UserId: {userId}");
+                await _logger.LogInfo(Component, $"User started ask flow | UserId: {userId}");
                 await _bot.SendMessage(
                     message.Chat.Id,
-                    new FindHandler().Handle(),
-                    replyMarkup: new ReplyKeyboardRemove()
-                );
-
-                return;
-            }
-            if (IsAdsCommand(normalized))
-            {
-                session.State = UserState.WaitingForAdContent;
-                _sessions.Save(session);
-                await _logger.LogInfo(Component, $"User started ads flow | UserId: {userId}");
-                await _bot.SendMessage(
-                    message.Chat.Id,
-                    new AdsHandler().Handle(),
+                    new AskHandler().Handle(),
                     replyMarkup: new ReplyKeyboardRemove(),
                     parseMode: ParseMode.Html
                 );
 
                 return;
             }
-            if (IsAdviceCommand(normalized))
-            {
-                session.State = UserState.WaitingForAdvice;
-                _sessions.Save(session);
-                await _bot.SendMessage(
-                    message.Chat.Id,
-                    new IdeasHandler().Handle(),
-                    replyMarkup: new ReplyKeyboardRemove(),
-                    parseMode: ParseMode.Html
-                );
-                return;
-            }
+
             await HandleStatelessCommandAsync(message, normalized);
-        }
-
-        private async Task HandleAdviceAsync(Message message)
-        {
-            var userId = message.From!.Id;
-            var hasHistory = await _history.HasHistory(userId);
-            await _logger.LogInfo(Component, $"Advice received | UserId: {userId}");
-            await _bot.SendMessage(
-                message.Chat.Id,
-                "Дякуємо за вашу ідею! Ми її опрацюємо.",
-                replyMarkup: Keyboards.GetKeyboard(hasHistory)
-            );
         }
 
         private async Task HandleStatelessCommandAsync(Message message, string normalized)
         {
             var userId = message.From!.Id;
             var hasHistory = await _history.HasHistory(userId);
-            if (normalized == "історія запитів" || normalized == "/history")
+            if (normalized == "📋 історія запитів" || normalized == "/history")
             {
                 await _historyHandler.HandleAsync(_bot, message);
                 return;
             }
             ICommandHandler handler = normalized switch
             {
-                "/help" or "довідка" => new HelpHandler(),
-                "/ads_rule" or "/ads-rules" or "правила розміщення реклами" => new AdsRulesHandler(),
-                "/donate" or "підтримати нас" => new SupportUsHandler(),
+                "/help" or "ℹ️ довідка" => new HelpHandler(),
+                "/support" or "❤️ підтримати нас" => new SupportUsHandler(),
                 _ => new UnknownHandler()
             };
 
@@ -433,50 +386,68 @@ namespace FindIFBot.Services
             );
         }
 
-        private static bool IsFindCommand(string normalized) =>
-            normalized == "/find" || normalized == "розпочати пошук";
+        private static bool IsAskCommand(string normalized) =>
+            normalized == "/ask" || normalized == "📨 надіслати запит";
 
-        private static bool IsAdsCommand(string normalized) =>
-            normalized == "/ads" || normalized == "розмістити рекламу";
-
-        private static bool IsAdviceCommand(string normalized) =>
-            normalized == "/advice" || normalized == "запропонувати покращення";
-
-        private async Task PrepareFindConfirmationAsync(Message message, UserSession session)
+        private async Task PrepareAskConfirmationAsync(Message message, UserSession session)
         {
             await _logger.LogInfo(Component,
-                $"Preparing find confirmation | UserId: {message.From!.Id} | MessageId: {message.MessageId}");
+                $"Preparing ask confirmation | UserId: {message.From!.Id} | MessageId: {message.MessageId}");
+
             if (!_messages.TryGet(message.MessageId, out var stored))
             {
                 await _logger.LogError(Component,
                     $"Stored message not found for confirmation | UserId: {message.From!.Id} | MessageId: {message.MessageId}");
-                
                 return;
             }
+
+            // Send preview of the content
             if (stored.Photos.Count > 0)
             {
                 var media = stored.Photos
-                    .Select((id, i) => new InputMediaPhoto(id) { Caption = i == 0 ? stored.Text : null })
+                    .Select((id, i) => new InputMediaPhoto(id)
+                    {
+                        Caption = i == 0 ? stored.Text : null
+                    })
                     .ToArray();
+
                 await _bot.SendMediaGroup(message.Chat.Id, media);
             }
             else
             {
-                await _bot.SendMessage(message.Chat.Id, stored.Text ?? "(no text)");
+                // If no photos — send just text (with fallback if empty)
+                var previewText = string.IsNullOrWhiteSpace(stored.Text)
+                    ? "📝 (тільки текст без вмісту)"
+                    : stored.Text;
+
+                await _bot.SendMessage(
+                    message.Chat.Id,
+                    previewText,
+                    parseMode: ParseMode.Html
+                );
             }
+
+            // Confirmation message + buttons
             var keyboard = new InlineKeyboardMarkup(new[]
             {
                 new[]
                 {
-                    InlineKeyboardButton.WithCallbackData("Надіслати", $"proceed|{message.From!.Id}|{message.MessageId}"),
-                    InlineKeyboardButton.WithCallbackData("Скасувати", $"cancel|{message.From!.Id}|{message.MessageId}")
+                    InlineKeyboardButton.WithCallbackData("✅ Надіслати", $"proceed|{message.From!.Id}|{message.MessageId}"),
+                    InlineKeyboardButton.WithCallbackData("❌ Скасувати", $"cancel|{message.From!.Id}|{message.MessageId}")
                 }
             });
-            await _bot.SendMessage(message.Chat.Id, "Надіслати запит з повідомлення на перегляд адмінам?", replyMarkup: keyboard);
+
+            await _bot.SendMessage(
+                message.Chat.Id,
+                "📤 <b>Надіслати цей запит адмінам на перевірку?</b>\n\n",
+                replyMarkup: keyboard,
+                parseMode: ParseMode.Html
+            );
+
             await _logger.LogInfo(Component,
-                $"Find confirmation sent | UserId: {message.From!.Id} | MessageId: {message.MessageId} | Photos: {stored.Photos.Count}");
-            
-            session.State = UserState.ConfirmFindContent;
+                $"Ask confirmation sent | UserId: {message.From!.Id} | MessageId: {message.MessageId} | Photos: {stored.Photos.Count}");
+
+            session.State = UserState.ConfirmAskContent;
             _sessions.Save(session);
         }
 
