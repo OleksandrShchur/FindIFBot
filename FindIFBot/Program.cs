@@ -61,6 +61,7 @@ builder.Services.AddScoped<ICommandDispatcher, CommandDispatcher>();
 builder.Services.AddScoped<IAdminWorkflowService, AdminWorkflowService>();
 builder.Services.AddScoped<IAsyncCommandHandler, StartHandler>();
 builder.Services.AddScoped<IAsyncCommandHandler, HistoryHandler>();
+builder.Services.AddScoped<SupportUsHandler>();
 
 // Singletons
 builder.Services.AddSingleton(typeof(IAppLogger<>), typeof(AppLogger<>));
