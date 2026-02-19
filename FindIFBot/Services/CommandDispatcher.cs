@@ -373,6 +373,7 @@ namespace FindIFBot.Services
             ICommandHandler handler = normalized switch
             {
                 "/help" or "ℹ️ довідка" => new HelpHandler(),
+                "/policy" or "📜 правила" => new PolicyHandler(),
                 "/support" or "❤️ підтримати нас" => new SupportUsHandler(),
                 _ => new UnknownHandler()
             };
