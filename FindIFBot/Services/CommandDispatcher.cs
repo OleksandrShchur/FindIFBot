@@ -25,6 +25,7 @@ namespace FindIFBot.Services
         private readonly IUserRequestHistoryRepository _history;
         private readonly IAppLogger<CommandDispatcher> _logger;
         private readonly IServiceScopeFactory _scopeFactory;
+        private readonly SupportUsHandler _supportUsHandler;
 
         private static readonly Dictionary<string, List<Message>> _mediaBuffer = new();
         private static readonly object _lock = new();
@@ -38,7 +39,8 @@ namespace FindIFBot.Services
             IEnumerable<IAsyncCommandHandler> handlers,
             IUserRequestHistoryRepository history,
             IAppLogger<CommandDispatcher> logger,
-            IServiceScopeFactory scopeFactory)
+            IServiceScopeFactory scopeFactory,
+            SupportUsHandler supportUsHandler)
         {
             _bot = bot;
             _sessions = sessions;
@@ -49,6 +51,7 @@ namespace FindIFBot.Services
             _history = history;
             _logger = logger;
             _scopeFactory = scopeFactory;
+            _supportUsHandler = supportUsHandler;
         }
 
         public async Task DispatchAsync(Update update)
@@ -375,7 +378,7 @@ namespace FindIFBot.Services
             {
                 "/help" or "ℹ️ довідка" => new HelpHandler(),
                 "/policy" or "📜 правила" => new PolicyHandler(),
-                "/support" or "❤️ підтримати нас" => new SupportUsHandler(),
+                "/support" or "❤️ підтримати нас" => _supportUsHandler,
                 _ => new UnknownHandler()
             };
 

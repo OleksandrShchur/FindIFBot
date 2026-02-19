@@ -14,5 +14,7 @@
         public int ErrorLogsThreadId { get; init; }
         public int AllMessagesThreadId { get; init; }
         public int RetryMaxAttempts { get; init; }
+        public string BankLink { get; set; } = string.Empty;
+        public string CardNumber { get; set; } = string.Empty;
     }
 }
