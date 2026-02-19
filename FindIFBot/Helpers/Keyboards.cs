@@ -17,6 +17,7 @@ namespace FindIFBot.Helpers
             }
 
             keyboard.Add(new KeyboardButton[] { "ℹ️ Довідка" });
+            keyboard.Add(new KeyboardButton[] { "📜 Правила" });
             keyboard.Add(new KeyboardButton[] { "❤️ Підтримати нас" });
 
             return new ReplyKeyboardMarkup(keyboard)
