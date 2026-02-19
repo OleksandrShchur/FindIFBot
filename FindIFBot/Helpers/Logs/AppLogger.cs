@@ -11,10 +11,7 @@ public class AppLogger<T> : IAppLogger<T>
     private readonly ITelegramBotClient _bot;
     private readonly ILogger<T> _logger;
 
-    public AppLogger(
-        ITelegramBotClient bot,
-        IOptions<TelegramOptions> options,
-        ILogger<T> logger)
+    public AppLogger(ITelegramBotClient bot, IOptions<TelegramOptions> options, ILogger<T> logger)
     {
         _bot = bot;
         _options = options.Value;

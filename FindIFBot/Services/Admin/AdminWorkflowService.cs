@@ -189,6 +189,7 @@ namespace FindIFBot.Services.Admin
 
             var requests = await _history.GetByUserId(userId);
             var request = requests.FirstOrDefault(r => r.UserMessageId == stored.MessageId && r.Status == RequestStatus.Pending);
+            
             if (request != null)
             {
                 request.Status = RequestStatus.Approved;
@@ -217,6 +218,7 @@ namespace FindIFBot.Services.Admin
 
             var requests = await _history.GetByUserId(userId);
             var request = requests.FirstOrDefault(r => r.UserMessageId == messageId && r.Status == RequestStatus.Pending);
+            
             if (request != null)
             {
                 request.Status = RequestStatus.Rejected;
@@ -244,6 +246,7 @@ namespace FindIFBot.Services.Admin
 
             var requests = await _history.GetByUserId(userId);
             var request = requests.FirstOrDefault(r => r.UserMessageId == messageId && r.Status == RequestStatus.Pending);
+            
             if (request != null)
             {
                 request.Status = RequestStatus.Duplicate;

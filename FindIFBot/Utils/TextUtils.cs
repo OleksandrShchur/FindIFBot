@@ -4,7 +4,7 @@
     {
         public static string GetTextPreview(string text)
         {
-            string input = (text ?? "").Trim();
+            var input = (text ?? "").Trim();
 
             if (string.IsNullOrWhiteSpace(input))
             {
@@ -16,8 +16,8 @@
                 return input;
             }
 
-            string[] words = input.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            string firstThreeWords = string.Join(" ", words.Take(3));
+            var words = input.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var firstThreeWords = string.Join(" ", words.Take(3));
 
             string truncated;
             if (firstThreeWords.Length <= 15)

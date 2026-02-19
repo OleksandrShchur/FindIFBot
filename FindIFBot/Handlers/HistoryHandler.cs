@@ -34,6 +34,7 @@ namespace FindIFBot.Handlers
                     replyMarkup: initialMarkup,
                     parseMode: ParseMode.Html
                 );
+
                 return;
             }
 
@@ -48,8 +49,8 @@ namespace FindIFBot.Handlers
                 .ToList();
 
             var markup = await BuildMarkup(userId);
+            var approvedText = "";
 
-            string approvedText = "";
             if (approved.Any())
             {
                 approvedText = "✅ <b>Затверджені запити:</b>\n\n";
@@ -65,7 +66,7 @@ namespace FindIFBot.Handlers
                 approvedText = approvedText.TrimEnd();
             }
 
-            string pendingText = "";
+            var pendingText = "";
             var pendingMessageIds = new List<int>();
             if (pending.Any())
             {
