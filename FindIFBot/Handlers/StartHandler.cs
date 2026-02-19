@@ -15,9 +15,7 @@ namespace FindIFBot.Handlers
             _history = history;
         }
 
-        public async Task HandleAsync(
-            ITelegramBotClient bot,
-            Message message)
+        public async Task HandleAsync(ITelegramBotClient bot, Message message)
         {
             await bot.SendMessage(
                 message.Chat.Id,
