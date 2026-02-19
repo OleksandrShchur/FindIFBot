@@ -189,6 +189,7 @@ namespace FindIFBot.Services.Admin
 
             var requests = await _history.GetByUserId(userId);
             var request = requests.FirstOrDefault(r => r.UserMessageId == stored.MessageId && r.Status == RequestStatus.Pending);
+            
             if (request != null)
             {
                 request.Status = RequestStatus.Approved;
@@ -217,6 +218,7 @@ namespace FindIFBot.Services.Admin
 
             var requests = await _history.GetByUserId(userId);
             var request = requests.FirstOrDefault(r => r.UserMessageId == messageId && r.Status == RequestStatus.Pending);
+            
             if (request != null)
             {
                 request.Status = RequestStatus.Rejected;
@@ -244,6 +246,7 @@ namespace FindIFBot.Services.Admin
 
             var requests = await _history.GetByUserId(userId);
             var request = requests.FirstOrDefault(r => r.UserMessageId == messageId && r.Status == RequestStatus.Pending);
+            
             if (request != null)
             {
                 request.Status = RequestStatus.Duplicate;
@@ -274,12 +277,12 @@ namespace FindIFBot.Services.Admin
             {
                 new[]
                 {
-                    InlineKeyboardButton.WithCallbackData("Approve post", $"+ask|{stored.UserId}|{messageId}"),
-                    InlineKeyboardButton.WithCallbackData("Decline post", $"-ask|{stored.UserId}|{messageId}")
+                    InlineKeyboardButton.WithCallbackData("✅ Схвалити пост", $"+ask|{stored.UserId}|{messageId}"),
+                    InlineKeyboardButton.WithCallbackData("❌ Відхилити пост", $"-ask|{stored.UserId}|{messageId}")
                 },
                 new[]
                 {
-                    InlineKeyboardButton.WithCallbackData("Duplicated post", $"?ask|{stored.UserId}|{messageId}")
+                    InlineKeyboardButton.WithCallbackData("📋 Дублікат посту", $"?ask|{stored.UserId}|{messageId}")
                 }
             });
 
@@ -288,8 +291,9 @@ namespace FindIFBot.Services.Admin
                 var media = stored.Photos
                     .Select((id, i) => new InputMediaPhoto(id) { Caption = i == 0 ? stored.Text : null })
                     .ToArray();
+
                 await _bot.SendMediaGroup(_options.AdminId, media);
-                await _bot.SendMessage(_options.AdminId, "Moderation actions:", replyMarkup: keyboard);
+                await _bot.SendMessage(_options.AdminId, "🛠 Дії модерації:", replyMarkup: keyboard);
             }
             else
             {

@@ -109,7 +109,7 @@ namespace FindIFBot.Services
             {
                 var mediaGroupId = message.MediaGroupId!;
                 var key = MediaKey(userId, mediaGroupId);
-                bool isFirstMessageInGroup = false;
+                var isFirstMessageInGroup = false;
 
                 lock (_lock)
                 {
@@ -132,8 +132,8 @@ namespace FindIFBot.Services
                         await Task.Delay(2000);
 
                         List<Message>? group = null;
-                        long capturedUserId = message.From!.Id;
-                        string capturedMediaGroupId = mediaGroupId;
+                        var capturedUserId = message.From!.Id;
+                        var capturedMediaGroupId = mediaGroupId;
 
                         lock (_lock)
                         {
@@ -203,7 +203,7 @@ namespace FindIFBot.Services
             var totalMediaCount = orderedMessages.Count;
             var ignoredCount = totalMediaCount - photos.Count;
 
-            bool isSubmissionState = session.State == UserState.WaitingForAskQuery;
+            var isSubmissionState = session.State == UserState.WaitingForAskQuery;
 
             if (isSubmissionState)
             {
@@ -305,11 +305,11 @@ namespace FindIFBot.Services
                 $"Stored single message | UserId: {userId} | MessageId: {message.MessageId} | Photos: {photos.Count} | TextLength: {(text?.Length ?? 0)}");
             
             var normalized = (text ?? string.Empty).ToLowerInvariant();
-            bool isSubmissionState = session.State == UserState.WaitingForAskQuery;
+            var isSubmissionState = session.State == UserState.WaitingForAskQuery;
             
             if (isSubmissionState)
             {
-                bool hasNonPhotoMedia = (message.Video != null || message.Animation != null || message.Document != null ||
+                var hasNonPhotoMedia = (message.Video != null || message.Animation != null || message.Document != null ||
                                          message.Audio != null || message.Voice != null || message.Sticker != null);
                 if (hasNonPhotoMedia)
                 {
@@ -365,6 +365,7 @@ namespace FindIFBot.Services
         {
             var userId = message.From!.Id;
             var hasHistory = await _history.HasHistory(userId);
+
             if (normalized == "📋 історія запитів" || normalized == "/history")
             {
                 await _historyHandler.HandleAsync(_bot, message);
