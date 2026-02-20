@@ -25,11 +25,5 @@ namespace FindIFBot.Controllers
 
             return Ok();
         }
-
-        [HttpGet]
-        public IActionResult Get()
-        {
-            return Ok("Server is running.");
-        }
     }
 }
