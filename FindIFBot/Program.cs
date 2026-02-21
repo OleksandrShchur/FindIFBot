@@ -33,6 +33,7 @@ Log.Logger = new LoggerConfiguration()
     .WriteTo.File(
         path: "logs/log-.txt", // creates logs/log-20260212.txt etc.
         rollingInterval: RollingInterval.Day, // new file every day
+        rollOnFileSizeLimit: true,
         outputTemplate: "{Timestamp:dd.MM.yyyy HH:mm:ss} [{Level:u3}] {Message:lj}{NewLine}{Exception}",
         retainedFileCountLimit: 10, // keep last 10 days
         fileSizeLimitBytes: 10 * 1024 * 1024 // 10 MB per file
@@ -57,6 +58,7 @@ builder.Services.AddScoped<IUserSessionRepository, UserSessionRepository>();
 builder.Services.AddScoped<IUserRequestHistoryRepository, UserRequestHistoryRepository>();
 
 // Handlers / workflows
+builder.Services.AddScoped<IMaintenanceService, MaintenanceService>();
 builder.Services.AddScoped<ICommandDispatcher, CommandDispatcher>();
 builder.Services.AddScoped<IAdminWorkflowService, AdminWorkflowService>();
 builder.Services.AddScoped<IAsyncCommandHandler, StartHandler>();
