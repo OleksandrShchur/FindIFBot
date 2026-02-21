@@ -1,4 +1,5 @@
-﻿using FindIFBot.Configuration;
+﻿using System.Threading.RateLimiting;
+using FindIFBot.Configuration;
 using FindIFBot.EF;
 using FindIFBot.EF.Repositories;
 using FindIFBot.Handlers;
@@ -26,6 +27,33 @@ builder.Services
 
 builder.Services.Configure<MaintenanceOptions>(builder.Configuration.GetSection("Maintenance"));
 
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    // Global limit - 50 requests per 10 seconds per IP
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(
+        httpContext => RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 50,
+                Window = TimeSpan.FromSeconds(10),
+                QueueLimit = 0
+            }));
+
+    // Maintenance endpoints - only 5 calls per minute
+    options.AddPolicy("maintenance", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            }));
+});
+
 // Logging
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
@@ -41,6 +69,7 @@ Log.Logger = new LoggerConfiguration()
         fileSizeLimitBytes: 10 * 1024 * 1024 // 10 MB per file
     )
     .CreateLogger();
+
 builder.Host.UseSerilog();
 
 // Telegram client
@@ -85,6 +114,8 @@ if (app.Environment.IsDevelopment())
 app.UseSerilogRequestLogging();
 app.UseHttpsRedirection();
 app.UseAuthorization();
-app.MapControllers();
 
+app.UseRateLimiter();
+
+app.MapControllers();
 app.Run();

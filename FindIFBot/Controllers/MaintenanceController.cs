@@ -3,6 +3,7 @@ using System.Text;
 using FindIFBot.Configuration;
 using FindIFBot.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 
 namespace FindIFBot.Controllers
@@ -26,6 +27,7 @@ namespace FindIFBot.Controllers
         }
 
         [HttpPost("process-yesterday-logs")]
+        [EnableRateLimiting("maintenance")]
         public async Task<IActionResult> ProcessYesterdayLogs([FromHeader(Name = "X-Maintenance-Key")] string key,
             CancellationToken cancellationToken = default)
         {
@@ -52,6 +54,7 @@ namespace FindIFBot.Controllers
         }
 
         [HttpPost("daily-statistics")]
+        [EnableRateLimiting("maintenance")]
         public async Task<IActionResult> GenerateDailyStatistics([FromHeader(Name = "X-Maintenance-Key")] string key,
             CancellationToken cancellationToken = default)
         {
