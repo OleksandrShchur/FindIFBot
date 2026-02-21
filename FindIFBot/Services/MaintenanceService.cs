@@ -1,4 +1,6 @@
 ﻿using FindIFBot.Configuration;
+using FindIFBot.EF;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Telegram.Bot;
 using Telegram.Bot.Types;
@@ -11,16 +13,19 @@ namespace FindIFBot.Services
         private readonly IWebHostEnvironment _environment;
         private readonly ITelegramBotClient _botClient;
         private readonly TelegramOptions _telegramOptions;
+        private readonly BotDbContext _dbContext;
 
         public MaintenanceService(ILogger<MaintenanceService> logger,
             IWebHostEnvironment environment,
             ITelegramBotClient botClient,
-            IOptions<TelegramOptions> telegramOptions)
+            IOptions<TelegramOptions> telegramOptions,
+            BotDbContext dbContext)
         {
             _logger = logger;
             _environment = environment;
             _botClient = botClient;
             _telegramOptions = telegramOptions.Value;
+            _dbContext = dbContext;
         }
 
         public async Task ProcessYesterdayLogsAsync(CancellationToken cancellationToken = default)
@@ -93,6 +98,19 @@ namespace FindIFBot.Services
             {
                 _logger.LogError(ex, "Critical error in daily log maintenance");
             }
+        }
+
+        public async Task SendDailyStatisticsAsync(CancellationToken cancellationToken = default)
+        {
+            var userCount = await _dbContext.UserSessions
+                .AsNoTracking()
+                .CountAsync(cancellationToken);
+
+            await _botClient.SendMessage(
+                chatId: _telegramOptions.LogsOutputChannel,
+                messageThreadId: _telegramOptions.LogsThreadId,
+                text: $"📊 Daily Statistics — {DateTime.Today:dd.MM.yyyy}\n👥 Total users: {userCount:N0}",
+                cancellationToken: cancellationToken);
         }
     }
 }
