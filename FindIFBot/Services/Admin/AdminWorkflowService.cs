@@ -174,7 +174,7 @@ namespace FindIFBot.Services.Admin
             }
             else
             {
-                var result = await _bot.SendMessage(_options.UserOutputChannel, postText);
+                var result = await _bot.SendMessage(_options.UserOutputChannel, postText, parseMode: ParseMode.Html);
 
                 postTextPreview = TextUtils.GetTextPreview(stored.Text);
                 postId = result.MessageId;
