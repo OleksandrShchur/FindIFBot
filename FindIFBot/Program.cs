@@ -24,6 +24,8 @@ builder.Services
     .Validate(o => !string.IsNullOrWhiteSpace(o.BotToken), "Telegram BotToken is required")
     .ValidateOnStart();
 
+builder.Services.Configure<MaintenanceOptions>(builder.Configuration.GetSection("Maintenance"));
+
 // Logging
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
