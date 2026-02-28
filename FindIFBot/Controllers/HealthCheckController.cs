@@ -7,6 +7,7 @@ namespace FindIFBot.Controllers
     public class HealthCheckController : ControllerBase
     {
         [HttpGet]
+        [HttpHead]
         public IActionResult Get() => Ok("FindIFBot is healthy!");
     }
 }
