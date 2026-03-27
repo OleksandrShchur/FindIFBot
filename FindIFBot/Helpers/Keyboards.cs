@@ -8,7 +8,7 @@ namespace FindIFBot.Helpers
         {
             var keyboard = new List<KeyboardButton[]>
             {
-                new KeyboardButton[] { "📨 Надіслати запит" }
+                new KeyboardButton[] { "📨 Новий запит" }
             };
 
             if (hasHistory)
@@ -22,7 +22,11 @@ namespace FindIFBot.Helpers
                 "📜 Правила"
             });
 
-            keyboard.Add(new KeyboardButton[] { "❤️ Підтримати нас" });
+            keyboard.Add(new KeyboardButton[] 
+            { 
+                "❤️ Підтримати",
+                "🔗 Канал"
+            });
 
             return new ReplyKeyboardMarkup(keyboard)
             {
