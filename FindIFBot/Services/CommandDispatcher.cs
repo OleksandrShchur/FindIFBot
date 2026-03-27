@@ -26,6 +26,7 @@ namespace FindIFBot.Services
         private readonly IAppLogger<CommandDispatcher> _logger;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly SupportUsHandler _supportUsHandler;
+        private readonly ChannelLinkHandler _channelLinkHandler;
 
         private static readonly Dictionary<string, List<Message>> _mediaBuffer = new();
         private static readonly object _lock = new();
@@ -40,7 +41,8 @@ namespace FindIFBot.Services
             IUserRequestHistoryRepository history,
             IAppLogger<CommandDispatcher> logger,
             IServiceScopeFactory scopeFactory,
-            SupportUsHandler supportUsHandler)
+            SupportUsHandler supportUsHandler,
+            ChannelLinkHandler channelLinkHandler)
         {
             _bot = bot;
             _sessions = sessions;
@@ -52,6 +54,7 @@ namespace FindIFBot.Services
             _logger = logger;
             _scopeFactory = scopeFactory;
             _supportUsHandler = supportUsHandler;
+            _channelLinkHandler = channelLinkHandler;
         }
 
         public async Task DispatchAsync(Update update)
@@ -378,7 +381,8 @@ namespace FindIFBot.Services
             {
                 "/help" or "ℹ️ довідка" => new HelpHandler(),
                 "/policy" or "📜 правила" => new PolicyHandler(),
-                "/support" or "❤️ підтримати нас" => _supportUsHandler,
+                "/support" or "❤️ підтримати" => _supportUsHandler,
+                "/channel" or "🔗 канал" => _channelLinkHandler,
                 _ => new UnknownHandler()
             };
 
@@ -392,7 +396,7 @@ namespace FindIFBot.Services
         }
 
         private static bool IsAskCommand(string normalized) =>
-            normalized == "/ask" || normalized == "📨 надіслати запит";
+            normalized == "/ask" || normalized == "📨 новий запит";
 
         private async Task PrepareAskConfirmationAsync(Message message, UserSession session)
         {
