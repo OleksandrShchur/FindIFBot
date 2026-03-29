@@ -32,6 +32,9 @@ namespace FindIFBot.Services
         private static readonly object _lock = new();
         private const string Component = "Dispatcher";
 
+        private const int MaxCaptionLength = 970;
+        private const int MaxTextLength = 4040;
+
         public CommandDispatcher(
             ITelegramBotClient bot,
             IUserSessionRepository sessions,
@@ -165,7 +168,7 @@ namespace FindIFBot.Services
                             if (currentSession == null)
                             {
                                 await _logger.LogError(Component, $"No session found in media group background task | user={capturedUserId}");
-                                
+
                                 return;
                             }
 
@@ -264,6 +267,28 @@ namespace FindIFBot.Services
                     _sessions.Save(session);
                     return;
                 }
+
+                var caption = captionMessage.Caption ?? string.Empty;
+                if (caption.Length > MaxCaptionLength)
+                {
+                    await _logger.LogWarning(Component,
+                        $"Validation failed: caption too long | UserId: {userId} | Length: {caption.Length}");
+
+                    await _bot.SendMessage(
+                        chatId,
+                        $"❌ <b>Помилка:</b> підпис до фото занадто довгий\n\n" +
+                        $"<b>Максимум дозволено:</b> {MaxCaptionLength} символів\n" +
+                        $"<b>Ваш підпис:</b> {caption.Length} символів\n\n" +
+                        "Будь ласка, скоротіть підпис і спробуйте ще раз.",
+                        replyMarkup: Keyboards.GetKeyboard(hasHistory),
+                        parseMode: ParseMode.Html
+                    );
+
+                    session.State = UserState.Idle;
+                    _sessions.Save(session);
+
+                    return;
+                }
             }
 
             var stored = new StoredMessage(
@@ -297,6 +322,57 @@ namespace FindIFBot.Services
             var photos = message.Photo != null
                 ? new List<string> { message.Photo.Last().FileId }
                 : new List<string>();
+
+            var isSubmissionState = session.State == UserState.WaitingForAskQuery;
+
+            if (isSubmissionState)
+            {
+                var hasNonPhotoMedia = (message.Video != null || message.Animation != null || message.Document != null ||
+                                         message.Audio != null || message.Voice != null || message.Sticker != null);
+                if (hasNonPhotoMedia)
+                {
+                    await _logger.LogWarning(Component,
+                        $"Validation failed: non-photo media in submission | UserId: {userId} | MessageId: {message.MessageId}");
+
+                    await _bot.SendMessage(
+                        message.Chat.Id,
+                        "❌ <b>Помилка:</b> надіслано не фото\n\n" +
+                        "Ми підтримуємо <b>тільки фотографії</b>.\n" +
+                        "Відео, документи, GIF, стікери та інші типи файлів зараз не обробляються.",
+                        replyMarkup: Keyboards.GetKeyboard(hasHistory),
+                        parseMode: ParseMode.Html
+                    );
+
+                    session.State = UserState.Idle;
+                    _sessions.Save(session);
+                    return;
+                }
+
+                var textToValidate = text ?? string.Empty;
+                var limit = photos.Count > 0 ? MaxCaptionLength : MaxTextLength;
+
+                if (textToValidate.Length > limit)
+                {
+                    await _logger.LogWarning(Component,
+                        $"Validation failed: text too long | UserId: {userId} | Length: {textToValidate.Length} | Limit: {limit}");
+
+                    await _bot.SendMessage(
+                        message.Chat.Id,
+                        $"❌ <b>Помилка:</b> текст занадто довгий\n\n" +
+                        $"<b>Максимум дозволено:</b> {limit} символів\n" +
+                        $"<b>Ваш текст:</b> {textToValidate.Length} символів\n\n" +
+                        "Будь ласка, скоротіть текст і спробуйте ще раз.",
+                        replyMarkup: Keyboards.GetKeyboard(hasHistory),
+                        parseMode: ParseMode.Html
+                    );
+
+                    session.State = UserState.Idle;
+                    _sessions.Save(session);
+
+                    return;
+                }
+            }
+
             var stored = new StoredMessage(
                 message.Chat.Id,
                 userId,
@@ -309,31 +385,9 @@ namespace FindIFBot.Services
 
             await _logger.LogInfo(Component,
                 $"Stored single message | UserId: {userId} | MessageId: {message.MessageId} | Photos: {photos.Count} | TextLength: {(text?.Length ?? 0)}");
-            
+
             var normalized = (text ?? string.Empty).ToLowerInvariant();
-            var isSubmissionState = session.State == UserState.WaitingForAskQuery;
-            
-            if (isSubmissionState)
-            {
-                var hasNonPhotoMedia = (message.Video != null || message.Animation != null || message.Document != null ||
-                                         message.Audio != null || message.Voice != null || message.Sticker != null);
-                if (hasNonPhotoMedia)
-                {
-                    await _logger.LogWarning(Component,
-                        $"Validation failed: non-photo media in submission | UserId: {userId} | MessageId: {message.MessageId}");
-                    await _bot.SendMessage(
-                        message.Chat.Id,
-                        "❌ <b>Помилка:</b> надіслано не фото\n\n" +
-                        "Ми підтримуємо <b>тільки фотографії</b>.\n" +
-                        "Відео, документи, GIF, стікери та інші типи файлів зараз не обробляються.",
-                        replyMarkup: Keyboards.GetKeyboard(hasHistory),
-                        parseMode: ParseMode.Html
-                    );
-                    session.State = UserState.Idle;
-                    _sessions.Save(session);
-                    return;
-                }
-            }
+
             if (normalized == "/start")
             {
                 session.State = UserState.Idle;
