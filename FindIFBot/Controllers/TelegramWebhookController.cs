@@ -1,4 +1,5 @@
-﻿using FindIFBot.Services;
+﻿using FindIFBot.Helpers.Logs;
+using FindIFBot.Services;
 using Microsoft.AspNetCore.Mvc;
 using Telegram.Bot.Types;
 
@@ -9,10 +10,15 @@ namespace FindIFBot.Controllers
     public class TelegramWebhookController : ControllerBase
     {
         private readonly ICommandDispatcher _dispatcher;
+        private readonly IAppLogger<TelegramWebhookController> _logger;
 
-        public TelegramWebhookController(ICommandDispatcher dispatcher)
+        private const string Component = "TelegramWebhookController";
+
+        public TelegramWebhookController(ICommandDispatcher dispatcher, 
+            IAppLogger<TelegramWebhookController> logger)
         {
             _dispatcher = dispatcher;
+            _logger = logger;
         }
 
         [HttpPost]
@@ -21,7 +27,15 @@ namespace FindIFBot.Controllers
             if (update == null)
                 return Ok();
 
-            await _dispatcher.DispatchAsync(update);
+            try
+            {
+                await _dispatcher.DispatchAsync(update);
+            }
+            catch (Exception ex)
+            {
+                // Log but always return 200 — prevents Telegram from retrying the same update
+                _logger.LogError(Component, $"Unhandled exception in DispatchAsync. UpdateId: {update.Id}");
+            }
 
             return Ok();
         }
