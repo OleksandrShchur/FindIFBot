@@ -99,7 +99,19 @@ namespace FindIFBot.Services.Admin
                     break;
                 case "proceed":
                     await _logger.LogInfo(Component, $"User confirmed submission | UserId: {userId} | MessageId: {messageId}");
-                    await SubmitAskAsync(stored);
+
+                    var userInfo = new UserInfo
+                    {
+                        Id = cb.From.Id,
+                        UserName = cb.From.Username,
+                        FirstName = cb.From.FirstName,
+                        LastName = cb.From.LastName,
+                        IsBot = cb.From.IsBot,
+                        LanguageCode = cb.From.LanguageCode,
+                        IsPremium = cb.From.IsPremium
+                    };
+                    
+                    await SubmitAskAsync(stored, userInfo);
                     var session = _sessions.Get(userId);
                     session.State = UserState.Idle;
                     _sessions.Save(session);
@@ -124,7 +136,7 @@ namespace FindIFBot.Services.Admin
             await CleanupAsync(cb, messageId);
         }
 
-        public async Task SubmitAskAsync(StoredMessage stored)
+        public async Task SubmitAskAsync(StoredMessage stored, UserInfo userInfo)
         {
             await _logger.LogInfo(Component,
                 $"Submitting ask request to moderation | UserId: {stored.UserId} | MessageId: {stored.MessageId} | Photos: {stored.Photos.Count}");
@@ -148,7 +160,7 @@ namespace FindIFBot.Services.Admin
 
             await _history.Add(request);
 
-            await SendToAdmin(stored, stored.MessageId);
+            await SendToAdmin(stored, stored.MessageId, userInfo);
         }
 
         private async Task PublishAsync(long userId, StoredMessage stored)
@@ -274,10 +286,22 @@ namespace FindIFBot.Services.Admin
             catch { }
         }
 
-        private async Task SendToAdmin(StoredMessage stored, int messageId)
+        private async Task SendToAdmin(StoredMessage stored, int messageId, UserInfo userInfo)
         {
             await _logger.LogInfo(Component,
                 $"Sending ask request to admin | UserId: {stored.UserId} | MessageId: {messageId} | Photos: {stored.Photos.Count}");
+
+            await _bot.SendMessage(
+                _options.AdminId,
+                $"Інформація про користувача:" +
+                $"\n\n<b>ID:</b> {userInfo.Id}" +
+                $"\n<b>UserName:</b> {(string.IsNullOrEmpty(userInfo.UserName) ? "—" : $"@{userInfo.UserName}")}" +
+                $"\n<b>First Name:</b> {userInfo.FirstName ?? "—"}" +
+                $"\n<b>Last Name:</b> {userInfo.LastName ?? "—"}" +
+                $"\n<b>Language Code:</b> {userInfo.LanguageCode ?? "—"}" +
+                $"\n<b>Is Bot:</b> {(userInfo.IsBot ? "✅ Так" : "❌ Ні")}" +
+                $"\n<b>Is Premium:</b> {(userInfo.IsPremium ? "✅ Так" : "❌ Ні")}",
+                parseMode: ParseMode.Html);
 
             var keyboard = new InlineKeyboardMarkup(new[]
             {
