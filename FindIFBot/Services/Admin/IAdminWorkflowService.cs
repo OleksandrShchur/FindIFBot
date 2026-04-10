@@ -1,4 +1,5 @@
-﻿using FindIFBot.Persistence;
+﻿using FindIFBot.Domain;
+using FindIFBot.Persistence;
 using Telegram.Bot.Types;
 
 namespace FindIFBot.Services.Admin
@@ -6,6 +7,6 @@ namespace FindIFBot.Services.Admin
     public interface IAdminWorkflowService
     {
         Task HandleCallbackAsync(CallbackQuery callback);
-        Task SubmitAskAsync(StoredMessage stored);
+        Task SubmitAskAsync(StoredMessage stored, UserInfo userInfo);
     }
 }
