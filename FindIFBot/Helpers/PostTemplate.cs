@@ -8,7 +8,7 @@ namespace FindIFBot.Helpers
         {
             var botUrl = $"https://t.me/{options.BotUsername.TrimStart('@')}?start";
 
-            return $"{message.TrimEnd()}\n\n" +
+            return $"{message?.TrimEnd()}\n\n" +
                    $"📢 <a href=\"{options.LinkToChannel}\">Підписка</a> • " +
                    $"💬 <a href=\"{options.ChatInviteLink}\">Чат</a>\n" +
                    $"📨 <a href=\"{botUrl}\">Надіслати свій запит</a>";
