@@ -1,4 +1,5 @@
 ﻿using FindIFBot.Domain;
+using FindIFBot.Configuration;
 using FindIFBot.EF;
 using FindIFBot.EF.Entities;
 using FindIFBot.EF.Repositories;
@@ -7,7 +8,9 @@ using FindIFBot.Helpers;
 using FindIFBot.Helpers.Logs;
 using FindIFBot.Persistence;
 using FindIFBot.Services.Admin;
+using Microsoft.Extensions.Options;
 using Telegram.Bot;
+using Telegram.Bot.Exceptions;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
@@ -27,6 +30,7 @@ namespace FindIFBot.Services
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly SupportUsHandler _supportUsHandler;
         private readonly ChannelLinkHandler _channelLinkHandler;
+        private readonly TelegramOptions _options;
 
         private static readonly Dictionary<string, List<Message>> _mediaBuffer = new();
         private static readonly object _lock = new();
@@ -45,7 +49,8 @@ namespace FindIFBot.Services
             IAppLogger<CommandDispatcher> logger,
             IServiceScopeFactory scopeFactory,
             SupportUsHandler supportUsHandler,
-            ChannelLinkHandler channelLinkHandler)
+            ChannelLinkHandler channelLinkHandler,
+            IOptions<TelegramOptions> options)
         {
             _bot = bot;
             _sessions = sessions;
@@ -58,12 +63,19 @@ namespace FindIFBot.Services
             _scopeFactory = scopeFactory;
             _supportUsHandler = supportUsHandler;
             _channelLinkHandler = channelLinkHandler;
+            _options = options.Value;
         }
 
         public async Task DispatchAsync(Update update)
         {
             if (update.CallbackQuery != null)
             {
+                if (IsAskCallback(update.CallbackQuery))
+                {
+                    await HandleAskCallbackAsync(update.CallbackQuery);
+                    return;
+                }
+
                 await _admin.HandleCallbackAsync(update.CallbackQuery);
                 return;
             }
@@ -405,15 +417,7 @@ namespace FindIFBot.Services
             }
             if (IsAskCommand(normalized))
             {
-                session.State = UserState.WaitingForAskQuery;
-                _sessions.Save(session);
-                await _logger.LogInfo(Component, $"User started ask flow | UserId: {userId}");
-                await _bot.SendMessage(
-                    message.Chat.Id,
-                    new AskHandler().Handle(),
-                    replyMarkup: new ReplyKeyboardRemove(),
-                    parseMode: ParseMode.Html
-                );
+                await StartAskFlowAsync(message.Chat.Id, userId, session);
 
                 return;
             }
@@ -426,17 +430,17 @@ namespace FindIFBot.Services
             var userId = message.From!.Id;
             var hasHistory = await _history.HasHistory(userId);
 
-            if (normalized == "📋 історія запитів" || normalized == "/history")
+            if (normalized == "📋 історія запитів" || normalized == "історія запитів" || normalized == "/history")
             {
                 await _historyHandler.HandleAsync(_bot, message);
                 return;
             }
             ICommandHandler handler = normalized switch
             {
-                "/help" or "ℹ️ довідка" => new HelpHandler(),
-                "/policy" or "📜 правила" => new PolicyHandler(),
-                "/support" or "❤️ підтримати" => _supportUsHandler,
-                "/channel" or "🔗 канал" => _channelLinkHandler,
+                "/help" or "ℹ️ довідка" or "довідка" => new HelpHandler(),
+                "/policy" or "📜 правила" or "правила"=> new PolicyHandler(),
+                "/support" or "❤️ підтримати" or "підтримати" => _supportUsHandler,
+                "/channel" or "🔗 канал" or "канал" => _channelLinkHandler,
                 _ => new UnknownHandler()
             };
 
@@ -450,7 +454,86 @@ namespace FindIFBot.Services
         }
 
         private static bool IsAskCommand(string normalized) =>
-            normalized == "/ask" || normalized == "📨 новий запит";
+            normalized == "/ask" || normalized == "📨 новий запит" || normalized == "новий запит";
+
+        private static bool IsAskCallback(CallbackQuery callback)
+        {
+            var normalized = callback.Data?.Trim().ToLowerInvariant();
+
+            return IsAskCommand(normalized);
+        }
+
+        private async Task HandleAskCallbackAsync(CallbackQuery callback)
+        {
+            await _bot.AnswerCallbackQuery(callback.Id);
+
+            var userId = callback.From.Id;
+            var chatId = callback.Message?.Chat.Id ?? userId;
+            var session = _sessions.Get(userId);
+
+            await StartAskFlowAsync(chatId, userId, session);
+        }
+
+        private async Task StartAskFlowAsync(long chatId, long userId, UserSession session)
+        {
+            if (!await IsSubscribedToOutputChannelAsync(userId))
+            {
+                session.State = UserState.Idle;
+                _sessions.Save(session);
+
+                await SendSubscriptionRequiredMessageAsync(chatId);
+                await _logger.LogInfo(Component, $"Ask flow blocked: user is not subscribed to output channel | UserId: {userId}");
+
+                return;
+            }
+
+            session.State = UserState.WaitingForAskQuery;
+            _sessions.Save(session);
+            await _logger.LogInfo(Component, $"User started ask flow | UserId: {userId}");
+            await _bot.SendMessage(
+                chatId,
+                new AskHandler().Handle(),
+                replyMarkup: new ReplyKeyboardRemove(),
+                parseMode: ParseMode.Html
+            );
+        }
+
+        private async Task<bool> IsSubscribedToOutputChannelAsync(long userId)
+        {
+            try
+            {
+                var member = await _bot.GetChatMember(_options.UserOutputChannel, userId);
+
+                return member switch
+                {
+                    ChatMemberMember => true,
+                    ChatMemberAdministrator => true,
+                    ChatMemberOwner => true,
+                    ChatMemberRestricted restricted => restricted.CanSendMessages,
+                    _ => false
+                };
+            }
+            catch (ApiRequestException ex)
+            {
+                await _logger.LogWarning(Component,
+                    $"Failed to check output channel membership | UserId: {userId} | ErrorCode: {ex.ErrorCode} | Message: {ex.Message}");
+
+                return false;
+            }
+        }
+
+        private async Task SendSubscriptionRequiredMessageAsync(long chatId)
+        {
+            var keyboard = new InlineKeyboardMarkup(InlineKeyboardButton.WithUrl("🔗 Підписатися на канал", _options.LinkToChannel));
+
+            await _bot.SendMessage(
+                chatId,
+                "🔒 <b>Щоб надіслати запит, потрібно бути підписаним на наш канал.</b>\n\n" +
+                "Будь ласка, підпишіться на канал і після цього знову натисніть «📨 Новий запит» або введіть /ask.",
+                replyMarkup: keyboard,
+                parseMode: ParseMode.Html
+            );
+        }
 
         private async Task PrepareAskConfirmationAsync(Message message, UserSession session)
         {
