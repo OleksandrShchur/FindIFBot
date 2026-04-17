@@ -524,13 +524,7 @@ namespace FindIFBot.Services
 
         private async Task SendSubscriptionRequiredMessageAsync(long chatId)
         {
-            var channelLink = !string.IsNullOrWhiteSpace(_options.ChatInviteLink)
-                ? _options.ChatInviteLink
-                : _options.LinkToChannel;
-
-            var keyboard = string.IsNullOrWhiteSpace(channelLink)
-                ? null
-                : new InlineKeyboardMarkup(InlineKeyboardButton.WithUrl("🔗 Підписатися на канал", channelLink));
+            var keyboard = new InlineKeyboardMarkup(InlineKeyboardButton.WithUrl("🔗 Підписатися на канал", _options.LinkToChannel));
 
             await _bot.SendMessage(
                 chatId,
