@@ -8,7 +8,7 @@ namespace FindIFBot.Helpers
         {
             var keyboard = new List<KeyboardButton[]>
             {
-                new KeyboardButton[] { "📨 Новий запит" }
+                new KeyboardButton[] { "📨 Надіслати запит" }
             };
 
             if (hasHistory)
