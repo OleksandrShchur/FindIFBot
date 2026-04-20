@@ -454,7 +454,7 @@ namespace FindIFBot.Services
         }
 
         private static bool IsAskCommand(string normalized) =>
-            normalized == "/ask" || normalized == "📨 новий запит" || normalized == "новий запит";
+            normalized == "/ask" || normalized == "📨 надіслати запит" || normalized == "надіслати запит";
 
         private static bool IsAskCallback(CallbackQuery callback)
         {
@@ -529,7 +529,7 @@ namespace FindIFBot.Services
             await _bot.SendMessage(
                 chatId,
                 "🔒 <b>Щоб надіслати запит, потрібно бути підписаним на наш канал.</b>\n\n" +
-                "Будь ласка, підпишіться на канал і після цього знову натисніть «📨 Новий запит» або введіть /ask.",
+                "Будь ласка, підпишіться на канал і після цього знову натисніть «📨 Надіслати запит» або введіть /ask.",
                 replyMarkup: keyboard,
                 parseMode: ParseMode.Html
             );
