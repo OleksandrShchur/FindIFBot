@@ -21,6 +21,7 @@ namespace FindIFBot.Services.Messages
         private readonly IMessageStorageService _storage;
         private readonly ISubmissionValidator _validator;
         private readonly IAskConfirmationService _confirmation;
+        private readonly IMessageCommandRouter _commandRouter;
         private readonly IAppLogger<MediaGroupHandler> _logger;
         private readonly IServiceScopeFactory _scopeFactory;
 
@@ -31,6 +32,7 @@ namespace FindIFBot.Services.Messages
             IMessageStorageService storage,
             ISubmissionValidator validator,
             IAskConfirmationService confirmation,
+            IMessageCommandRouter commandRouter,
             IAppLogger<MediaGroupHandler> logger,
             IServiceScopeFactory scopeFactory)
         {
@@ -40,6 +42,7 @@ namespace FindIFBot.Services.Messages
             _storage = storage;
             _validator = validator;
             _confirmation = confirmation;
+            _commandRouter = commandRouter;
             _logger = logger;
             _scopeFactory = scopeFactory;
         }
@@ -119,7 +122,11 @@ namespace FindIFBot.Services.Messages
             if (session.State == UserState.WaitingForAskQuery)
             {
                 await _confirmation.SendConfirmationAsync(captionMessage, session);
+                return;
             }
+
+            var normalized = (stored.Text ?? string.Empty).ToLowerInvariant();
+            await _commandRouter.RouteAsync(captionMessage, normalized);
         }
 
         private async Task ProcessBufferedGroupAsync(long userId, string mediaGroupId)

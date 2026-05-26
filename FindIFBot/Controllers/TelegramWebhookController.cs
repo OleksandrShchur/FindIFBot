@@ -34,7 +34,8 @@ namespace FindIFBot.Controllers
             catch (Exception ex)
             {
                 // Log but always return 200 — prevents Telegram from retrying the same update
-                _logger.LogError(Component, $"Unhandled exception in DispatchAsync. UpdateId: {update.Id}");
+                _ = _logger.LogError(Component, $"Unhandled exception in DispatchAsync. UpdateId: {update.Id}," +
+                    $"Error: {ex.Message}");
             }
 
             return Ok();
