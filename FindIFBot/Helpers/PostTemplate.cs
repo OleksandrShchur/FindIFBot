@@ -4,7 +4,7 @@ namespace FindIFBot.Helpers
 {
     public static class PostTemplate
     {
-        public static string Build(string message, TelegramOptions options)
+        public static string Build(string? message, TelegramOptions options)
         {
             var botUrl = $"https://t.me/{options.BotUsername.TrimStart('@')}?start";
 

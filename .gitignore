@@ -4,3 +4,5 @@ FindIFBot/obj
 FindIFBot/FindIFBot.http
 FindIFBot/appsettings.Development.json
 FindIFBot/logs
+FindIFBot/Properties/PublishProfiles
+FindIFBot/FindIFBot.csproj.user

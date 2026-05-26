@@ -7,6 +7,8 @@ using FindIFBot.Helpers.Logs;
 using FindIFBot.Persistence;
 using FindIFBot.Services;
 using FindIFBot.Services.Admin;
+using FindIFBot.Services.Ask;
+using FindIFBot.Services.Messages;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Serilog;
@@ -92,6 +94,21 @@ builder.Services.AddScoped<IUserRequestHistoryRepository, UserRequestHistoryRepo
 builder.Services.AddScoped<IMaintenanceService, MaintenanceService>();
 builder.Services.AddScoped<ICommandDispatcher, CommandDispatcher>();
 builder.Services.AddScoped<IAdminWorkflowService, AdminWorkflowService>();
+builder.Services.AddScoped<IAdminCallbackParser, AdminCallbackParser>();
+builder.Services.AddScoped<ICallbackAuthorizationService, CallbackAuthorizationService>();
+builder.Services.AddScoped<IRequestHistoryStatusService, RequestHistoryStatusService>();
+builder.Services.AddScoped<IUserModerationNotifier, UserModerationNotifier>();
+builder.Services.AddScoped<IRequestPublisher, RequestPublisher>();
+builder.Services.AddScoped<IAdminRequestNotifier, AdminRequestNotifier>();
+builder.Services.AddScoped<IAdminModerationService, AdminModerationService>();
+builder.Services.AddScoped<ISubscriptionService, TelegramSubscriptionService>();
+builder.Services.AddScoped<IAskFlowService, AskFlowService>();
+builder.Services.AddScoped<ISubmissionValidator, SubmissionValidator>();
+builder.Services.AddScoped<IMessageStorageService, MessageStorageService>();
+builder.Services.AddScoped<IAskConfirmationService, AskConfirmationService>();
+builder.Services.AddScoped<IMediaGroupHandler, MediaGroupHandler>();
+builder.Services.AddScoped<IMessageCommandRouter, MessageCommandRouter>();
+builder.Services.AddScoped<IMessageDispatchService, MessageDispatchService>();
 builder.Services.AddScoped<IAsyncCommandHandler, StartHandler>();
 builder.Services.AddScoped<IAsyncCommandHandler, HistoryHandler>();
 builder.Services.AddScoped<SupportUsHandler>();
@@ -100,6 +117,7 @@ builder.Services.AddScoped<ChannelLinkHandler>();
 // Singletons
 builder.Services.AddSingleton(typeof(IAppLogger<>), typeof(AppLogger<>));
 builder.Services.AddSingleton<IMessageStore, InMemoryMessageStore>();
+builder.Services.AddSingleton<IMediaGroupBuffer, MediaGroupBuffer>();
 
 // OpenAPI
 builder.Services.AddOpenApi();
