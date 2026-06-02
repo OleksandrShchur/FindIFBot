@@ -1,6 +1,7 @@
 ﻿using FindIFBot.Configuration;
 using Microsoft.Extensions.Options;
 using Telegram.Bot;
+using Telegram.Bot.Types;
 using Telegram.Bot.Exceptions;
 
 namespace FindIFBot.Helpers.Logs;
@@ -57,6 +58,7 @@ public class AppLogger<T> : IAppLogger<T>
                 await _bot.SendMessage(
                     chatId: _options.LogsOutputChannel,
                     text: text,
+                    linkPreviewOptions: new LinkPreviewOptions { IsDisabled = true },
                     messageThreadId: threadId);
 
                 return;

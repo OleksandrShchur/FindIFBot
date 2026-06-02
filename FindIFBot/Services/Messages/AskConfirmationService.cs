@@ -63,6 +63,7 @@ namespace FindIFBot.Services.Messages
                 await _bot.SendMessage(
                     message.Chat.Id,
                     previewText,
+                    linkPreviewOptions: new LinkPreviewOptions { IsDisabled = true },
                     parseMode: ParseMode.Html
                 );
             }
@@ -80,6 +81,7 @@ namespace FindIFBot.Services.Messages
                 message.Chat.Id,
                 "📤 <b>Надіслати цей запит адмінам на перевірку?</b>\n\n",
                 replyMarkup: keyboard,
+                linkPreviewOptions: new LinkPreviewOptions { IsDisabled = true },
                 parseMode: ParseMode.Html
             );
 

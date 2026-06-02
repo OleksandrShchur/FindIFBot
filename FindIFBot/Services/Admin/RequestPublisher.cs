@@ -41,7 +41,12 @@ namespace FindIFBot.Services.Admin
             }
             else
             {
-                var result = await _bot.SendMessage(_options.UserOutputChannel, postText, parseMode: ParseMode.Html);
+                var result = await _bot.SendMessage(
+                    _options.UserOutputChannel, 
+                    postText, 
+                    linkPreviewOptions: new LinkPreviewOptions { IsDisabled = true },
+                    parseMode: ParseMode.Html
+                );
                 postId = result.MessageId;
             }
 

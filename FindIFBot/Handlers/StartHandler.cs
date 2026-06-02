@@ -23,6 +23,7 @@ namespace FindIFBot.Handlers
                 "Мене звати <b>Франківськ Питає Бот</b> 🤖\n\n" +
                 "Я допомагаю надсилати запити на публікацію в канал.\n" +
                 "Радий тебе бачити! ❤️",
+                linkPreviewOptions: new LinkPreviewOptions { IsDisabled = true },
                 parseMode: ParseMode.Html
             );
 
@@ -34,6 +35,7 @@ namespace FindIFBot.Handlers
                 message.Chat.Id,
                 "🛠 <b>Оберіть опцію, якою хочете скористатися:</b>",
                 replyMarkup: markup,
+                linkPreviewOptions: new LinkPreviewOptions { IsDisabled = true },
                 parseMode: ParseMode.Html
             );
         }
