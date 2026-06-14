@@ -45,7 +45,7 @@ namespace FindIFBot.Services.Ask
 
             var userId = callback.From.Id;
             var chatId = callback.Message?.Chat.Id ?? userId;
-            var session = _sessions.Get(userId);
+            var session = await _sessions.GetAsync(userId);
 
             await StartAsync(chatId, userId, session);
         }
@@ -55,7 +55,7 @@ namespace FindIFBot.Services.Ask
             if (!await _subscriptionService.IsSubscribedToOutputChannelAsync(userId))
             {
                 session.State = UserState.Idle;
-                _sessions.Save(session);
+                await _sessions.SaveAsync(session);
 
                 await SendSubscriptionRequiredMessageAsync(chatId);
                 await _logger.LogInfo(Component, $"Ask flow blocked: user is not subscribed to output channel | UserId: {userId}");
@@ -64,7 +64,7 @@ namespace FindIFBot.Services.Ask
             }
 
             session.State = UserState.WaitingForAskQuery;
-            _sessions.Save(session);
+            await _sessions.SaveAsync(session);
             await _logger.LogInfo(Component, $"User started ask flow | UserId: {userId}");
 
             await _bot.SendMessage(

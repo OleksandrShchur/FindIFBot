@@ -1,6 +1,8 @@
+using FindIFBot.Configuration;
 using FindIFBot.Domain;
 using FindIFBot.EF.Repositories;
 using FindIFBot.Helpers;
+using Microsoft.Extensions.Options;
 using Telegram.Bot;
 using Telegram.Bot.Exceptions;
 using Telegram.Bot.Types;
@@ -12,10 +14,12 @@ namespace FindIFBot.Handlers
     public class HistoryHandler : IAsyncCommandHandler
     {
         private readonly IUserRequestHistoryRepository _history;
+        private readonly HistoryOptions _options;
 
-        public HistoryHandler(IUserRequestHistoryRepository history)
+        public HistoryHandler(IUserRequestHistoryRepository history, IOptions<HistoryOptions> options)
         {
             _history = history;
+            _options = options.Value;
         }
 
         public async Task HandleAsync(ITelegramBotClient bot, Message message)
@@ -26,29 +30,33 @@ namespace FindIFBot.Handlers
 
             if (!allRequests.Any())
             {
-                var initialMarkup = await BuildMarkup(userId);
                 await bot.SendMessage(
                     chatId,
                     "📭 <b>У вас ще немає історії запитів.</b>\n\n" +
                     "Натисніть кнопку нижче, щоб надіслати свій перший запит 👇",
-                    replyMarkup: initialMarkup,
+                    replyMarkup: Keyboards.GetKeyboard(false),
                     parseMode: ParseMode.Html
                 );
 
                 return;
             }
 
-            var approved = allRequests
+            var maxItems = _options.MaxItemsPerSection;
+
+            var approvedAll = allRequests
                 .Where(r => r.Status == RequestStatus.Approved)
                 .OrderByDescending(r => r.SubmittedAt)
                 .ToList();
 
-            var pending = allRequests
+            var pendingAll = allRequests
                 .Where(r => r.Status == RequestStatus.Pending)
                 .OrderByDescending(r => r.SubmittedAt)
                 .ToList();
 
-            var markup = await BuildMarkup(userId);
+            var approved = approvedAll.Take(maxItems).ToList();
+            var pending = pendingAll.Take(maxItems).ToList();
+
+            var markup = Keyboards.GetKeyboard(true);
             var approvedText = "";
 
             if (approved.Any())
@@ -62,6 +70,10 @@ namespace FindIFBot.Handlers
                         approvedText += $"🔗 <b>Посилання:</b> {req.ChannelLink}\n";
                     }
                     approvedText += "\n";
+                }
+                if (approvedAll.Count > maxItems)
+                {
+                    approvedText += $"… та ще {approvedAll.Count - maxItems} (показано останні {maxItems})\n";
                 }
                 approvedText = approvedText.TrimEnd();
             }
@@ -77,6 +89,10 @@ namespace FindIFBot.Handlers
                     itemText += $"🆔 <b>ID запиту:</b> <code>{req.UserMessageId}</code>\n\n";
                     pendingMessageIds.Add(req.UserMessageId);
                     pendingText += itemText;
+                }
+                if (pendingAll.Count > maxItems)
+                {
+                    pendingText += $"… та ще {pendingAll.Count - maxItems} (показано останні {maxItems})\n";
                 }
                 pendingText = pendingText.TrimEnd();
             }
@@ -128,13 +144,6 @@ namespace FindIFBot.Handlers
                     );
                 }
             }
-        }
-
-        private async Task<ReplyKeyboardMarkup> BuildMarkup(long userId)
-        {
-            var hasHistory = (await _history.GetByUserId(userId)).Any();
-            
-            return Keyboards.GetKeyboard(hasHistory);
         }
     }
 }

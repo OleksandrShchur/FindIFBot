@@ -3,45 +3,39 @@
 namespace FindIFBot.Persistence
 {
     /// <summary>
-    /// In-memory store for messages that are buffered between submission and moderation.
-    /// Entries are evicted both explicitly (after moderation) and automatically once they
-    /// exceed <see cref="EntryLifetime"/>. The time-based eviction bounds memory usage so a
-    /// flood of submissions whose moderation never completes (e.g. abandoned requests, lost
-    /// callbacks) cannot grow the dictionary without limit.
-    /// NOTE: this remains process-local and is lost on restart. Durable pending content
-    /// should be persisted in the database — see the refactoring roadmap.
+    /// In-memory <see cref="IMessageStore"/> kept for tests and non-durable scenarios.
+    /// The production registration uses <see cref="DbMessageStore"/> so pending submissions
+    /// survive restarts. Entries here are still evicted after <see cref="EntryLifetime"/>
+    /// so memory cannot grow without bound.
     /// </summary>
     public class InMemoryMessageStore : IMessageStore
     {
-        // Generous enough not to interfere with realistic moderation turnaround,
-        // while still guaranteeing the store cannot grow unbounded.
         private static readonly TimeSpan EntryLifetime = TimeSpan.FromHours(48);
 
         private readonly ConcurrentDictionary<int, Entry> _store = new();
 
-        public void Store(int messageId, StoredMessage message)
+        public Task StoreAsync(StoredMessage message, CancellationToken cancellationToken = default)
         {
             EvictExpired();
-            _store[messageId] = new Entry(message, DateTime.UtcNow);
+            _store[message.MessageId] = new Entry(message, DateTime.UtcNow);
+            return Task.CompletedTask;
         }
 
-        public bool TryGet(int messageId, out StoredMessage message)
+        public Task<StoredMessage?> TryGetAsync(int messageId, CancellationToken cancellationToken = default)
         {
             if (_store.TryGetValue(messageId, out var entry) && !entry.IsExpired)
             {
-                message = entry.Message;
-                return true;
+                return Task.FromResult<StoredMessage?>(entry.Message);
             }
 
-            // Drop the stale entry if it was found but expired.
             _store.TryRemove(messageId, out _);
-            message = null!;
-            return false;
+            return Task.FromResult<StoredMessage?>(null);
         }
 
-        public void Remove(int messageId)
+        public Task RemoveAsync(int messageId, CancellationToken cancellationToken = default)
         {
             _store.TryRemove(messageId, out _);
+            return Task.CompletedTask;
         }
 
         private void EvictExpired()

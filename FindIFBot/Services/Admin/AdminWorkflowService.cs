@@ -52,7 +52,7 @@ namespace FindIFBot.Services.Admin
                 return;
             }
 
-            if (!_messages.TryGet(data.MessageId, out var stored))
+            if (await _messages.TryGetAsync(data.MessageId) is not { } stored)
             {
                 await _logger.LogError(Component,
                     $"Stored message not found on callback | UserId: {data.UserId} | MessageId: {data.MessageId}");
@@ -106,9 +106,9 @@ namespace FindIFBot.Services.Admin
 
             await _moderation.SubmitAskAsync(stored, CreateUserInfo(callback.From));
 
-            var session = _sessions.Get(data.UserId);
+            var session = await _sessions.GetAsync(data.UserId);
             session.State = UserState.Idle;
-            _sessions.Save(session);
+            await _sessions.SaveAsync(session);
 
             try
             {
@@ -121,7 +121,7 @@ namespace FindIFBot.Services.Admin
 
         private async Task CleanupAsync(CallbackQuery callback, int messageId)
         {
-            _messages.Remove(messageId);
+            await _messages.RemoveAsync(messageId);
             await _logger.LogInfo(Component, $"Cleanup: removed stored message | MessageId: {messageId}");
 
             try

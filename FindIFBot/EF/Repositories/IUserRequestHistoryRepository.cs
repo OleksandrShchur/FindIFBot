@@ -1,3 +1,4 @@
+using FindIFBot.Domain;
 using FindIFBot.EF.Entities;
 
 namespace FindIFBot.EF.Repositories
@@ -9,5 +10,25 @@ namespace FindIFBot.EF.Repositories
         Task<List<UserRequest>> GetByUserId(long userId);
         Task<UserRequest?> GetById(Guid id);
         Task<bool> HasHistory(long userId);
+
+        /// <summary>
+        /// Atomically transitions a request from <paramref name="expectedStatus"/> to
+        /// <paramref name="newStatus"/> in a single SQL UPDATE. Returns true only if exactly this
+        /// caller performed the transition, providing idempotency for double-delivered callbacks.
+        /// </summary>
+        Task<bool> TryTransitionStatusAsync(
+            long userId,
+            int userMessageId,
+            RequestStatus expectedStatus,
+            RequestStatus newStatus,
+            string? channelLink,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>Sets the channel link on an already-approved request (post-publish).</summary>
+        Task SetChannelLinkAsync(
+            long userId,
+            int userMessageId,
+            string channelLink,
+            CancellationToken cancellationToken = default);
     }
 }

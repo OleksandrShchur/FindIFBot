@@ -4,8 +4,8 @@ namespace FindIFBot.EF.Repositories
 {
     public interface IUserSessionRepository
     {
-        UserSession Get(long userId);
-        void Save(UserSession session);
-        void Reset(long userId);
+        Task<UserSession> GetAsync(long userId, CancellationToken cancellationToken = default);
+        Task SaveAsync(UserSession session, CancellationToken cancellationToken = default);
+        Task ResetAsync(long userId, CancellationToken cancellationToken = default);
     }
 }

@@ -29,6 +29,9 @@ builder.Services
 
 builder.Services.Configure<MaintenanceOptions>(builder.Configuration.GetSection("Maintenance"));
 
+builder.Services.Configure<SubmissionOptions>(builder.Configuration.GetSection(SubmissionOptions.SectionName));
+builder.Services.Configure<HistoryOptions>(builder.Configuration.GetSection(HistoryOptions.SectionName));
+
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -120,8 +123,14 @@ builder.Services.AddScoped<UnknownHandler>();
 
 // Singletons
 builder.Services.AddSingleton(typeof(IAppLogger<>), typeof(AppLogger<>));
-builder.Services.AddSingleton<IMessageStore, InMemoryMessageStore>();
 builder.Services.AddSingleton<IMediaGroupBuffer, MediaGroupBuffer>();
+
+// Durable pending-submission store (survives restarts)
+builder.Services.AddScoped<IMessageStore, DbMessageStore>();
+
+// Media group queue + hosted processor (replaces fire-and-forget Task.Run)
+builder.Services.AddSingleton<IMediaGroupQueue, MediaGroupQueue>();
+builder.Services.AddHostedService<MediaGroupProcessor>();
 
 // OpenAPI
 builder.Services.AddOpenApi();

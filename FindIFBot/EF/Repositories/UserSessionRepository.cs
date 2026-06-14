@@ -12,17 +12,17 @@ namespace FindIFBot.EF.Repositories
             _db = db;
         }
 
-        public UserSession Get(long userId)
+        public async Task<UserSession> GetAsync(long userId, CancellationToken cancellationToken = default)
         {
-            var entity = _db.UserSessions
-                .FirstOrDefault(s => s.UserId == userId);
+            var entity = await _db.UserSessions
+                .FirstOrDefaultAsync(s => s.UserId == userId, cancellationToken);
 
             return entity ?? new UserSession { UserId = userId };
         }
 
-        public void Save(UserSession session)
+        public async Task SaveAsync(UserSession session, CancellationToken cancellationToken = default)
         {
-            var entity = _db.UserSessions.Find(session.UserId);
+            var entity = await _db.UserSessions.FindAsync(new object[] { session.UserId }, cancellationToken);
 
             if (entity is null)
             {
@@ -33,16 +33,16 @@ namespace FindIFBot.EF.Repositories
                 _db.Entry(entity).CurrentValues.SetValues(session);
             }
 
-            _db.SaveChanges();
+            await _db.SaveChangesAsync(cancellationToken);
         }
 
-        public void Reset(long userId)
+        public async Task ResetAsync(long userId, CancellationToken cancellationToken = default)
         {
-            var entity = _db.UserSessions.Find(userId);
+            var entity = await _db.UserSessions.FindAsync(new object[] { userId }, cancellationToken);
             if (entity != null)
             {
                 _db.UserSessions.Remove(entity);
-                _db.SaveChanges();
+                await _db.SaveChangesAsync(cancellationToken);
             }
         }
     }

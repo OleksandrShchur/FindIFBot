@@ -63,7 +63,7 @@ namespace FindIFBot.Services.Messages
                 return;
             }
 
-            var session = _sessions.Get(userId);
+            var session = await _sessions.GetAsync(userId);
             await HandleSingleMessageAsync(message, session);
         }
 
@@ -86,7 +86,7 @@ namespace FindIFBot.Services.Messages
                 }
             }
 
-            var stored = _storage.StoreSingle(message, text, photos);
+            var stored = await _storage.StoreSingleAsync(message, text, photos);
 
             await _logger.LogInfo(Component,
                 $"Stored single message | UserId: {userId} | MessageId: {stored.MessageId} | Photos: {photos.Count} | TextLength: {(text?.Length ?? 0)}");
@@ -96,7 +96,7 @@ namespace FindIFBot.Services.Messages
             if (BotCommands.IsStart(normalized))
             {
                 session.State = UserState.Idle;
-                _sessions.Save(session);
+                await _sessions.SaveAsync(session);
                 await _startHandler.HandleAsync(_bot, message);
                 return;
             }
@@ -133,7 +133,7 @@ namespace FindIFBot.Services.Messages
             );
 
             session.State = UserState.Idle;
-            _sessions.Save(session);
+            await _sessions.SaveAsync(session);
         }
     }
 }
