@@ -93,7 +93,7 @@ namespace FindIFBot.Services.Messages
 
             var normalized = (text ?? string.Empty).ToLowerInvariant();
 
-            if (normalized == "/start")
+            if (BotCommands.IsStart(normalized))
             {
                 session.State = UserState.Idle;
                 _sessions.Save(session);
@@ -107,7 +107,7 @@ namespace FindIFBot.Services.Messages
                 return;
             }
 
-            if (IsAskCommand(normalized))
+            if (BotCommands.IsAsk(normalized))
             {
                 await _askFlow.StartAsync(message.Chat.Id, userId, session);
                 return;
@@ -135,8 +135,5 @@ namespace FindIFBot.Services.Messages
             session.State = UserState.Idle;
             _sessions.Save(session);
         }
-
-        private static bool IsAskCommand(string normalized) =>
-            normalized == "/ask" || normalized == "📨 надіслати запит" || normalized == "надіслати запит";
     }
 }

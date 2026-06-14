@@ -21,19 +21,22 @@ namespace FindIFBot.Services.Ask
         private readonly ISubscriptionService _subscriptionService;
         private readonly IAppLogger<AskFlowService> _logger;
         private readonly TelegramOptions _options;
+        private readonly AskHandler _askHandler;
 
         public AskFlowService(
             ITelegramBotClient bot,
             IUserSessionRepository sessions,
             ISubscriptionService subscriptionService,
             IAppLogger<AskFlowService> logger,
-            IOptions<TelegramOptions> options)
+            IOptions<TelegramOptions> options,
+            AskHandler askHandler)
         {
             _bot = bot;
             _sessions = sessions;
             _subscriptionService = subscriptionService;
             _logger = logger;
             _options = options.Value;
+            _askHandler = askHandler;
         }
 
         public async Task HandleCallbackAsync(CallbackQuery callback)
@@ -66,7 +69,7 @@ namespace FindIFBot.Services.Ask
 
             await _bot.SendMessage(
                 chatId,
-                new AskHandler().Handle(),
+                _askHandler.Handle(),
                 replyMarkup: new ReplyKeyboardRemove(),
                 parseMode: ParseMode.Html
             );

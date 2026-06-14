@@ -113,6 +113,10 @@ builder.Services.AddScoped<IAsyncCommandHandler, StartHandler>();
 builder.Services.AddScoped<IAsyncCommandHandler, HistoryHandler>();
 builder.Services.AddScoped<SupportUsHandler>();
 builder.Services.AddScoped<ChannelLinkHandler>();
+builder.Services.AddScoped<AskHandler>();
+builder.Services.AddScoped<HelpHandler>();
+builder.Services.AddScoped<PolicyHandler>();
+builder.Services.AddScoped<UnknownHandler>();
 
 // Singletons
 builder.Services.AddSingleton(typeof(IAppLogger<>), typeof(AppLogger<>));

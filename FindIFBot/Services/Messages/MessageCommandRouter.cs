@@ -16,23 +16,32 @@ namespace FindIFBot.Services.Messages
         private readonly IAsyncCommandHandler _historyHandler;
         private readonly IUserRequestHistoryRepository _history;
         private readonly IAppLogger<MessageCommandRouter> _logger;
+        private readonly HelpHandler _helpHandler;
+        private readonly PolicyHandler _policyHandler;
         private readonly SupportUsHandler _supportUsHandler;
         private readonly ChannelLinkHandler _channelLinkHandler;
+        private readonly UnknownHandler _unknownHandler;
 
         public MessageCommandRouter(
             ITelegramBotClient bot,
             IEnumerable<IAsyncCommandHandler> handlers,
             IUserRequestHistoryRepository history,
             IAppLogger<MessageCommandRouter> logger,
+            HelpHandler helpHandler,
+            PolicyHandler policyHandler,
             SupportUsHandler supportUsHandler,
-            ChannelLinkHandler channelLinkHandler)
+            ChannelLinkHandler channelLinkHandler,
+            UnknownHandler unknownHandler)
         {
             _bot = bot;
             _historyHandler = handlers.OfType<HistoryHandler>().Single();
             _history = history;
             _logger = logger;
+            _helpHandler = helpHandler;
+            _policyHandler = policyHandler;
             _supportUsHandler = supportUsHandler;
             _channelLinkHandler = channelLinkHandler;
+            _unknownHandler = unknownHandler;
         }
 
         public async Task RouteAsync(Message message, string normalized)
@@ -40,20 +49,18 @@ namespace FindIFBot.Services.Messages
             var userId = message.From!.Id;
             var hasHistory = await _history.HasHistory(userId);
 
-            if (normalized == "📋 історія запитів" || normalized == "історія запитів" || normalized == "/history")
+            if (BotCommands.IsHistory(normalized))
             {
                 await _historyHandler.HandleAsync(_bot, message);
                 return;
             }
 
-            ICommandHandler handler = normalized switch
-            {
-                "/help" or "ℹ️ довідка" or "довідка" => new HelpHandler(),
-                "/policy" or "📜 правила" or "правила" => new PolicyHandler(),
-                "/support" or "❤️ підтримати" or "підтримати" => _supportUsHandler,
-                "/channel" or "🔗 канал" or "канал" => _channelLinkHandler,
-                _ => new UnknownHandler()
-            };
+            ICommandHandler handler =
+                BotCommands.IsHelp(normalized) ? _helpHandler :
+                BotCommands.IsPolicy(normalized) ? _policyHandler :
+                BotCommands.IsSupport(normalized) ? _supportUsHandler :
+                BotCommands.IsChannel(normalized) ? _channelLinkHandler :
+                _unknownHandler;
 
             await _logger.LogInfo(Component, $"Stateless command handled: {normalized} | UserId: {userId}");
             await _bot.SendMessage(
