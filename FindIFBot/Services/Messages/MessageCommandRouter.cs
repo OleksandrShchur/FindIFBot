@@ -60,6 +60,7 @@ namespace FindIFBot.Services.Messages
                 message.Chat.Id,
                 handler.Handle(),
                 replyMarkup: Keyboards.GetKeyboard(hasHistory),
+                linkPreviewOptions: new LinkPreviewOptions { IsDisabled = true },
                 parseMode: ParseMode.Html
             );
         }

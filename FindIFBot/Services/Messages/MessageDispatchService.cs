@@ -129,6 +129,7 @@ namespace FindIFBot.Services.Messages
                 message.Chat.Id,
                 errorMessage,
                 replyMarkup: Keyboards.GetKeyboard(hasHistory),
+                linkPreviewOptions: new LinkPreviewOptions { IsDisabled = true },
                 parseMode: ParseMode.Html
             );
 

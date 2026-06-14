@@ -26,6 +26,7 @@ namespace FindIFBot.Services.Admin
                 "⏳ <b>Запит відправлено на модерацію!</b>\n\n" +
                 "Очікуйте, будь ласка — наші модератори скоро перевірять ваш допис.\n",
                 replyMarkup: Keyboards.GetKeyboard(true),
+                linkPreviewOptions: new LinkPreviewOptions { IsDisabled = true },
                 parseMode: ParseMode.Html
             );
         }
@@ -37,6 +38,7 @@ namespace FindIFBot.Services.Admin
                 "🚀 <b>Готово!</b> Ваш пост уже в каналі!\n\n" +
                 $"<a href=\"{channelLink}\">👉 Переглянути публікацію</a>\n\n",
                 replyMarkup: Keyboards.GetKeyboard(await _history.HasHistory(userId)),
+                linkPreviewOptions: new LinkPreviewOptions { IsDisabled = true },
                 parseMode: ParseMode.Html
             );
         }
@@ -52,6 +54,7 @@ namespace FindIFBot.Services.Admin
                 "Статус усіх твоїх запитів завжди можна подивитись у /history",
                 replyParameters: new ReplyParameters { MessageId = messageId },
                 replyMarkup: Keyboards.GetKeyboard(await _history.HasHistory(userId)),
+                linkPreviewOptions: new LinkPreviewOptions { IsDisabled = true },
                 parseMode: ParseMode.Html
             );
         }
@@ -67,6 +70,7 @@ namespace FindIFBot.Services.Admin
                 "Статус запитів → /history або кнопка «📋 Історія запитів»",
                 replyParameters: new ReplyParameters { MessageId = messageId },
                 replyMarkup: Keyboards.GetKeyboard(await _history.HasHistory(userId)),
+                linkPreviewOptions: new LinkPreviewOptions { IsDisabled = true },
                 parseMode: ParseMode.Html
             );
         }
@@ -82,6 +86,7 @@ namespace FindIFBot.Services.Admin
                 "Переглянути історію запитів: /history або кнопка «📋 Історія запитів» нижче",
                 replyParameters: new ReplyParameters { MessageId = messageId },
                 replyMarkup: Keyboards.GetKeyboard(await _history.HasHistory(userId)),
+                linkPreviewOptions: new LinkPreviewOptions { IsDisabled = true },
                 parseMode: ParseMode.Html
             );
         }
