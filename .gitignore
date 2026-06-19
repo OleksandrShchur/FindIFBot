@@ -6,3 +6,7 @@ FindIFBot/appsettings.Development.json
 FindIFBot/logs
 FindIFBot/Properties/PublishProfiles
 FindIFBot/FindIFBot.csproj.user
+tests/FindIFBot.IntegrationTests/bin
+tests/FindIFBot.IntegrationTests/obj
+tests/FindIFBot.UnitTests/bin
+tests/FindIFBot.UnitTests/obj
