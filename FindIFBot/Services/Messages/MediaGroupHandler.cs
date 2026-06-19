@@ -94,6 +94,7 @@ namespace FindIFBot.Services.Messages
                         $"З {totalMediaCount} файлів оброблено тільки <b>{photos.Count} фото</b>.\n" +
                         "Відео, GIF, документи та інші типи <b>ігноруються</b>.",
                         replyMarkup: Keyboards.GetKeyboard(hasHistory),
+                        linkPreviewOptions: new LinkPreviewOptions { IsDisabled = true },
                         parseMode: ParseMode.Html
                     );
                 }
@@ -140,6 +141,7 @@ namespace FindIFBot.Services.Messages
                 message.Chat.Id,
                 errorMessage,
                 replyMarkup: Keyboards.GetKeyboard(hasHistory),
+                linkPreviewOptions: new LinkPreviewOptions { IsDisabled = true },
                 parseMode: ParseMode.Html
             );
 

@@ -71,6 +71,7 @@ namespace FindIFBot.Services.Ask
                 chatId,
                 _askHandler.Handle(),
                 replyMarkup: new ReplyKeyboardRemove(),
+                linkPreviewOptions: new LinkPreviewOptions { IsDisabled = true },
                 parseMode: ParseMode.Html
             );
         }
@@ -85,6 +86,7 @@ namespace FindIFBot.Services.Ask
                 "🔒 <b>Щоб надіслати запит, потрібно бути підписаним на наш канал.</b>\n\n" +
                 "Будь ласка, підпишіться на канал і після цього знову натисніть «📨 Надіслати запит» або введіть /ask.",
                 replyMarkup: keyboard,
+                linkPreviewOptions: new LinkPreviewOptions { IsDisabled = true },
                 parseMode: ParseMode.Html
             );
         }

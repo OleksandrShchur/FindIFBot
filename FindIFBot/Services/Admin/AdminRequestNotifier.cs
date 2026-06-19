@@ -4,6 +4,7 @@ using FindIFBot.Persistence;
 using Microsoft.Extensions.Options;
 using Telegram.Bot;
 using Telegram.Bot.Types;
+using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
 
 namespace FindIFBot.Services.Admin
@@ -33,7 +34,8 @@ namespace FindIFBot.Services.Admin
                 $"\n<b>Language Code:</b> {Format(userInfo.LanguageCode)}" +
                 $"\n<b>Is Bot:</b> {(userInfo.IsBot ? "✅ Так" : "❌ Ні")}" +
                 $"\n<b>Is Premium:</b> {(userInfo.IsPremium ? "✅ Так" : "❌ Ні")}",
-                parseMode: Telegram.Bot.Types.Enums.ParseMode.Html);
+                linkPreviewOptions: new LinkPreviewOptions { IsDisabled = true },
+                parseMode: ParseMode.Html);
 
             var keyboard = new InlineKeyboardMarkup(new[]
             {
@@ -55,11 +57,21 @@ namespace FindIFBot.Services.Admin
                     .ToArray();
 
                 await _bot.SendMediaGroup(_options.AdminId, media);
-                await _bot.SendMessage(_options.AdminId, "🛠 Дії модерації:", replyMarkup: keyboard);
+                await _bot.SendMessage(
+                    _options.AdminId, 
+                    "🛠 Дії модерації:", 
+                    linkPreviewOptions: new LinkPreviewOptions { IsDisabled = true },
+                    replyMarkup: keyboard
+                );
             }
             else
             {
-                await _bot.SendMessage(_options.AdminId, stored.Text ?? "📝 (тільки текст без вмісту)", replyMarkup: keyboard);
+                await _bot.SendMessage(
+                    _options.AdminId, 
+                    stored.Text ?? "📝 (тільки текст без вмісту)", 
+                    linkPreviewOptions: new LinkPreviewOptions { IsDisabled = true },
+                    replyMarkup: keyboard
+                );
             }
         }
 
