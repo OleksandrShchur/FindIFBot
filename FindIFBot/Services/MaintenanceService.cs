@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Telegram.Bot;
 using Telegram.Bot.Types;
+using Telegram.Bot.Types.Enums;
 
 namespace FindIFBot.Services
 {
@@ -14,6 +15,7 @@ namespace FindIFBot.Services
         private readonly ITelegramBotClient _botClient;
         private readonly TelegramOptions _telegramOptions;
         private readonly BotDbContext _dbContext;
+        private static readonly LinkPreviewOptions NoPreview = new() { IsDisabled = true };
 
         public MaintenanceService(ILogger<MaintenanceService> logger,
             IWebHostEnvironment environment,
@@ -110,6 +112,8 @@ namespace FindIFBot.Services
                 chatId: _telegramOptions.LogsOutputChannel,
                 messageThreadId: _telegramOptions.LogsThreadId,
                 text: $"📊 Daily Statistics — {DateTime.Today:dd.MM.yyyy}\n👥 Total users: {userCount:N0}",
+                linkPreviewOptions: NoPreview,
+                parseMode: ParseMode.Html,
                 cancellationToken: cancellationToken);
         }
     }

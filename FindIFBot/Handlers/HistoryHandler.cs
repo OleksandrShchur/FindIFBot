@@ -15,6 +15,7 @@ namespace FindIFBot.Handlers
     {
         private readonly IUserRequestHistoryRepository _history;
         private readonly HistoryOptions _options;
+        private static readonly LinkPreviewOptions NoPreview = new() { IsDisabled = true };
 
         public HistoryHandler(IUserRequestHistoryRepository history, IOptions<HistoryOptions> options)
         {
@@ -35,7 +36,7 @@ namespace FindIFBot.Handlers
                     "📭 <b>У вас ще немає історії запитів.</b>\n\n" +
                     "Натисніть кнопку нижче, щоб надіслати свій перший запит 👇",
                     replyMarkup: Keyboards.GetKeyboard(false),
-                    linkPreviewOptions: new LinkPreviewOptions { IsDisabled = true },
+                    linkPreviewOptions: NoPreview,
                     parseMode: ParseMode.Html
                 );
 
@@ -105,7 +106,7 @@ namespace FindIFBot.Handlers
                     chatId,
                     approvedText,
                     replyMarkup: replyMarkupForApproved,
-                    linkPreviewOptions: new LinkPreviewOptions { IsDisabled = true },
+                    linkPreviewOptions: NoPreview,
                     parseMode: ParseMode.Html
                 );
             }
@@ -116,7 +117,7 @@ namespace FindIFBot.Handlers
                     chatId,
                     pendingText,
                     replyMarkup: markup,
-                    linkPreviewOptions: new LinkPreviewOptions { IsDisabled = true },
+                    linkPreviewOptions: NoPreview,
                     parseMode: ParseMode.Html
                 );
             }
@@ -132,7 +133,7 @@ namespace FindIFBot.Handlers
                         {
                             MessageId = replyId
                         },
-                        linkPreviewOptions: new LinkPreviewOptions { IsDisabled = true },
+                        linkPreviewOptions: NoPreview,
                         parseMode: ParseMode.Html
                     );
                 }
@@ -144,7 +145,7 @@ namespace FindIFBot.Handlers
                         chatId: chatId,
                         text: $"⏳ Запит <code>{replyId}</code> очікує модерації.\n\n" +
                               "<i>(Оригінальне повідомлення було видалено)</i>",
-                        linkPreviewOptions: new LinkPreviewOptions { IsDisabled = true },
+                        linkPreviewOptions: NoPreview,
                         parseMode: ParseMode.Html
                     );
                 }

@@ -18,6 +18,7 @@ namespace FindIFBot.Services.Messages
         private readonly IMessageStore _messages;
         private readonly IUserSessionRepository _sessions;
         private readonly IAppLogger<AskConfirmationService> _logger;
+        private static readonly LinkPreviewOptions NoPreview = new() { IsDisabled = true };
 
         public AskConfirmationService(
             ITelegramBotClient bot,
@@ -63,7 +64,7 @@ namespace FindIFBot.Services.Messages
                 await _bot.SendMessage(
                     message.Chat.Id,
                     previewText,
-                    linkPreviewOptions: new LinkPreviewOptions { IsDisabled = true },
+                    linkPreviewOptions: NoPreview,
                     parseMode: ParseMode.Html
                 );
             }
@@ -81,7 +82,7 @@ namespace FindIFBot.Services.Messages
                 message.Chat.Id,
                 "📤 <b>Надіслати цей запит адмінам на перевірку?</b>\n\n",
                 replyMarkup: keyboard,
-                linkPreviewOptions: new LinkPreviewOptions { IsDisabled = true },
+                linkPreviewOptions: NoPreview,
                 parseMode: ParseMode.Html
             );
 

@@ -9,6 +9,7 @@ namespace FindIFBot.Handlers
     public class StartHandler : IAsyncCommandHandler
     {
         private readonly IUserRequestHistoryRepository _history;
+        private static readonly LinkPreviewOptions NoPreview = new() { IsDisabled = true };
 
         public StartHandler(IUserRequestHistoryRepository history)
         {
@@ -23,7 +24,7 @@ namespace FindIFBot.Handlers
                 "Мене звати <b>Франківськ Питає Бот</b> 🤖\n\n" +
                 "Я допомагаю надсилати запити на публікацію в канал.\n" +
                 "Радий тебе бачити! ❤️",
-                linkPreviewOptions: new LinkPreviewOptions { IsDisabled = true },
+                linkPreviewOptions: NoPreview,
                 parseMode: ParseMode.Html
             );
 
@@ -35,7 +36,7 @@ namespace FindIFBot.Handlers
                 message.Chat.Id,
                 "🛠 <b>Оберіть опцію, якою хочете скористатися:</b>",
                 replyMarkup: markup,
-                linkPreviewOptions: new LinkPreviewOptions { IsDisabled = true },
+                linkPreviewOptions: NoPreview,
                 parseMode: ParseMode.Html
             );
         }

@@ -11,6 +11,7 @@ namespace FindIFBot.Services.Messages
     public class MessageCommandRouter : IMessageCommandRouter
     {
         private const string Component = "CommandRouter";
+        private static readonly LinkPreviewOptions NoPreview = new() { IsDisabled = true };
 
         private readonly ITelegramBotClient _bot;
         private readonly IAsyncCommandHandler _historyHandler;
@@ -67,7 +68,7 @@ namespace FindIFBot.Services.Messages
                 message.Chat.Id,
                 handler.Handle(),
                 replyMarkup: Keyboards.GetKeyboard(hasHistory),
-                linkPreviewOptions: new LinkPreviewOptions { IsDisabled = true },
+                linkPreviewOptions: NoPreview,
                 parseMode: ParseMode.Html
             );
         }

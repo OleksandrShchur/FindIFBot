@@ -14,6 +14,7 @@ namespace FindIFBot.Services.Messages
     public class MessageDispatchService : IMessageDispatchService
     {
         private const string Component = "MessageDispatch";
+        private static readonly LinkPreviewOptions NoPreview = new() { IsDisabled = true };
 
         private readonly ITelegramBotClient _bot;
         private readonly IUserSessionRepository _sessions;
@@ -129,7 +130,7 @@ namespace FindIFBot.Services.Messages
                 message.Chat.Id,
                 errorMessage,
                 replyMarkup: Keyboards.GetKeyboard(hasHistory),
-                linkPreviewOptions: new LinkPreviewOptions { IsDisabled = true },
+                linkPreviewOptions: NoPreview,
                 parseMode: ParseMode.Html
             );
 
