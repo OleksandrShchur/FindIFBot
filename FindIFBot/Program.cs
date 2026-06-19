@@ -151,3 +151,7 @@ app.UseRateLimiter();
 
 app.MapControllers();
 app.Run();
+
+// Exposes the implicitly-generated Program class so WebApplicationFactory<Program> can
+// bootstrap the app for integration tests. No runtime behavior change.
+public partial class Program { }
