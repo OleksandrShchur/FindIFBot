@@ -1,3 +1,4 @@
+using FindIFBot.Helpers;
 using FindIFBot.Services.Admin;
 using FindIFBot.Services.Ask;
 using FindIFBot.Services.Messages;
@@ -41,13 +42,7 @@ namespace FindIFBot.Services
             }
         }
 
-        private static bool IsAskCallback(CallbackQuery callback)
-        {
-            var normalized = callback.Data?.Trim().ToLowerInvariant();
-
-            return normalized == "/ask" ||
-                   normalized == "📨 надіслати запит" ||
-                   normalized == "надіслати запит";
-        }
+        private static bool IsAskCallback(CallbackQuery callback) =>
+            BotCommands.IsAsk(BotCommands.Normalize(callback.Data));
     }
 }

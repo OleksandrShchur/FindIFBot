@@ -5,7 +5,7 @@ namespace FindIFBot.Services.Messages
 {
     public interface IMessageStorageService
     {
-        StoredMessage StoreSingle(Message message, string? text, IReadOnlyList<string> photos);
-        StoredMessage StoreMediaGroup(Message captionMessage, IReadOnlyList<string> photos);
+        Task<StoredMessage> StoreSingleAsync(Message message, string? text, IReadOnlyList<string> photos);
+        Task<StoredMessage> StoreMediaGroupAsync(Message captionMessage, IReadOnlyList<string> photos);
     }
 }

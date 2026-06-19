@@ -12,7 +12,7 @@ namespace FindIFBot.Services.Messages
             _messages = messages;
         }
 
-        public StoredMessage StoreSingle(Message message, string? text, IReadOnlyList<string> photos)
+        public async Task<StoredMessage> StoreSingleAsync(Message message, string? text, IReadOnlyList<string> photos)
         {
             var stored = new StoredMessage(
                 message.Chat.Id,
@@ -23,12 +23,12 @@ namespace FindIFBot.Services.Messages
                 message.MessageId
             );
 
-            _messages.Store(message.MessageId, stored);
+            await _messages.StoreAsync(stored);
 
             return stored;
         }
 
-        public StoredMessage StoreMediaGroup(Message captionMessage, IReadOnlyList<string> photos)
+        public async Task<StoredMessage> StoreMediaGroupAsync(Message captionMessage, IReadOnlyList<string> photos)
         {
             var stored = new StoredMessage(
                 captionMessage.Chat.Id,
@@ -39,7 +39,7 @@ namespace FindIFBot.Services.Messages
                 captionMessage.MessageId
             );
 
-            _messages.Store(captionMessage.MessageId, stored);
+            await _messages.StoreAsync(stored);
 
             return stored;
         }

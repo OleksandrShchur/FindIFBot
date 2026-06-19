@@ -21,19 +21,22 @@ namespace FindIFBot.Services.Ask
         private readonly ISubscriptionService _subscriptionService;
         private readonly IAppLogger<AskFlowService> _logger;
         private readonly TelegramOptions _options;
+        private readonly AskHandler _askHandler;
 
         public AskFlowService(
             ITelegramBotClient bot,
             IUserSessionRepository sessions,
             ISubscriptionService subscriptionService,
             IAppLogger<AskFlowService> logger,
-            IOptions<TelegramOptions> options)
+            IOptions<TelegramOptions> options,
+            AskHandler askHandler)
         {
             _bot = bot;
             _sessions = sessions;
             _subscriptionService = subscriptionService;
             _logger = logger;
             _options = options.Value;
+            _askHandler = askHandler;
         }
 
         public async Task HandleCallbackAsync(CallbackQuery callback)
@@ -42,7 +45,7 @@ namespace FindIFBot.Services.Ask
 
             var userId = callback.From.Id;
             var chatId = callback.Message?.Chat.Id ?? userId;
-            var session = _sessions.Get(userId);
+            var session = await _sessions.GetAsync(userId);
 
             await StartAsync(chatId, userId, session);
         }
@@ -52,7 +55,7 @@ namespace FindIFBot.Services.Ask
             if (!await _subscriptionService.IsSubscribedToOutputChannelAsync(userId))
             {
                 session.State = UserState.Idle;
-                _sessions.Save(session);
+                await _sessions.SaveAsync(session);
 
                 await SendSubscriptionRequiredMessageAsync(chatId);
                 await _logger.LogInfo(Component, $"Ask flow blocked: user is not subscribed to output channel | UserId: {userId}");
@@ -61,12 +64,12 @@ namespace FindIFBot.Services.Ask
             }
 
             session.State = UserState.WaitingForAskQuery;
-            _sessions.Save(session);
+            await _sessions.SaveAsync(session);
             await _logger.LogInfo(Component, $"User started ask flow | UserId: {userId}");
 
             await _bot.SendMessage(
                 chatId,
-                new AskHandler().Handle(),
+                _askHandler.Handle(),
                 replyMarkup: new ReplyKeyboardRemove(),
                 linkPreviewOptions: new LinkPreviewOptions { IsDisabled = true },
                 parseMode: ParseMode.Html

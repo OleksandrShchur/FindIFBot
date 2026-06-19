@@ -1,9 +1,18 @@
+using FindIFBot.Configuration;
+using Microsoft.Extensions.Options;
 using Telegram.Bot.Types;
 
 namespace FindIFBot.Services.Messages
 {
     public class SubmissionValidator : ISubmissionValidator
     {
+        private readonly SubmissionOptions _limits;
+
+        public SubmissionValidator(IOptions<SubmissionOptions> limits)
+        {
+            _limits = limits.Value;
+        }
+
         public SubmissionValidationResult ValidateSingleMessage(Message message, string? text, int photoCount)
         {
             var hasNonPhotoMedia = message.Video != null ||
@@ -22,7 +31,7 @@ namespace FindIFBot.Services.Messages
             }
 
             var textToValidate = text ?? string.Empty;
-            var limit = photoCount > 0 ? SubmissionLimits.MaxCaptionLength : SubmissionLimits.MaxTextLength;
+            var limit = photoCount > 0 ? _limits.MaxCaptionLength : _limits.MaxTextLength;
 
             if (textToValidate.Length > limit)
             {
@@ -42,11 +51,11 @@ namespace FindIFBot.Services.Messages
             int ignoredCount,
             string caption)
         {
-            if (photoCount > SubmissionLimits.MaxAlbumPhotoCount)
+            if (photoCount > _limits.MaxAlbumPhotoCount)
             {
                 return SubmissionValidationResult.Invalid(
                     "❌ <b>Помилка:</b> забагато фотографій\n" +
-                    $"<b>Максимум дозволено:</b> {SubmissionLimits.MaxAlbumPhotoCount} фото в одному запиті\n\n" +
+                    $"<b>Максимум дозволено:</b> {_limits.MaxAlbumPhotoCount} фото в одному запиті\n\n" +
                     "Будь ласка, надішліть менше.");
             }
 
@@ -57,11 +66,11 @@ namespace FindIFBot.Services.Messages
                     "Надішліть, будь ласка, альбом саме з фото.");
             }
 
-            if (caption.Length > SubmissionLimits.MaxCaptionLength)
+            if (caption.Length > _limits.MaxCaptionLength)
             {
                 return SubmissionValidationResult.Invalid(
                     $"❌ <b>Помилка:</b> підпис до фото занадто довгий\n\n" +
-                    $"<b>Максимум дозволено:</b> {SubmissionLimits.MaxCaptionLength} символів\n" +
+                    $"<b>Максимум дозволено:</b> {_limits.MaxCaptionLength} символів\n" +
                     $"<b>Ваш підпис:</b> {caption.Length} символів\n\n" +
                     "Будь ласка, скоротіть підпис і спробуйте ще раз.");
             }

@@ -63,7 +63,7 @@ namespace FindIFBot.Services.Messages
                 return;
             }
 
-            var session = _sessions.Get(userId);
+            var session = await _sessions.GetAsync(userId);
             await HandleSingleMessageAsync(message, session);
         }
 
@@ -86,17 +86,17 @@ namespace FindIFBot.Services.Messages
                 }
             }
 
-            var stored = _storage.StoreSingle(message, text, photos);
+            var stored = await _storage.StoreSingleAsync(message, text, photos);
 
             await _logger.LogInfo(Component,
                 $"Stored single message | UserId: {userId} | MessageId: {stored.MessageId} | Photos: {photos.Count} | TextLength: {(text?.Length ?? 0)}");
 
             var normalized = (text ?? string.Empty).ToLowerInvariant();
 
-            if (normalized == "/start")
+            if (BotCommands.IsStart(normalized))
             {
                 session.State = UserState.Idle;
-                _sessions.Save(session);
+                await _sessions.SaveAsync(session);
                 await _startHandler.HandleAsync(_bot, message);
                 return;
             }
@@ -107,7 +107,7 @@ namespace FindIFBot.Services.Messages
                 return;
             }
 
-            if (IsAskCommand(normalized))
+            if (BotCommands.IsAsk(normalized))
             {
                 await _askFlow.StartAsync(message.Chat.Id, userId, session);
                 return;
@@ -134,10 +134,7 @@ namespace FindIFBot.Services.Messages
             );
 
             session.State = UserState.Idle;
-            _sessions.Save(session);
+            await _sessions.SaveAsync(session);
         }
-
-        private static bool IsAskCommand(string normalized) =>
-            normalized == "/ask" || normalized == "📨 надіслати запит" || normalized == "надіслати запит";
     }
 }

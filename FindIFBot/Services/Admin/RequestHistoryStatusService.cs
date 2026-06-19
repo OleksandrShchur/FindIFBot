@@ -34,24 +34,26 @@ namespace FindIFBot.Services.Admin
             await _history.Add(request);
         }
 
-        public async Task MarkAsync(long userId, int userMessageId, RequestStatus status, string? channelLink = null)
+        public async Task<bool> TryTransitionAsync(long userId, int userMessageId, RequestStatus status, string? channelLink = null)
         {
-            var requests = await _history.GetByUserId(userId);
-            var request = requests.FirstOrDefault(r =>
-                r.UserMessageId == userMessageId &&
-                r.Status == RequestStatus.Pending);
+            var transitioned = await _history.TryTransitionStatusAsync(
+                userId, userMessageId, RequestStatus.Pending, status, channelLink);
 
-            if (request == null)
+            if (!transitioned)
             {
-                return;
+                await _logger.LogWarning(Component,
+                    $"No pending request to transition (already moderated?) | UserId: {userId} | MessageId: {userMessageId} | Target: {status}");
+                return false;
             }
-
-            request.Status = status;
-            request.ChannelLink = channelLink;
-            await _history.Update(request);
 
             await _logger.LogInfo(Component,
                 $"History updated to {status.ToString().ToUpperInvariant()} | UserId: {userId} | MessageId: {userMessageId}");
+            return true;
+        }
+
+        public async Task SetChannelLinkAsync(long userId, int userMessageId, string channelLink)
+        {
+            await _history.SetChannelLinkAsync(userId, userMessageId, channelLink);
         }
     }
 }

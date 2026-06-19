@@ -36,7 +36,7 @@ namespace FindIFBot.Services.Messages
             await _logger.LogInfo(Component,
                 $"Preparing ask confirmation | UserId: {message.From!.Id} | MessageId: {message.MessageId}");
 
-            if (!_messages.TryGet(message.MessageId, out var stored))
+            if (await _messages.TryGetAsync(message.MessageId) is not { } stored)
             {
                 await _logger.LogError(Component,
                     $"Stored message not found for confirmation | UserId: {message.From!.Id} | MessageId: {message.MessageId}");
@@ -89,7 +89,7 @@ namespace FindIFBot.Services.Messages
                 $"Ask confirmation sent | UserId: {message.From!.Id} | MessageId: {message.MessageId} | Photos: {stored.Photos.Count}");
 
             session.State = UserState.ConfirmAskContent;
-            _sessions.Save(session);
+            await _sessions.SaveAsync(session);
         }
     }
 }

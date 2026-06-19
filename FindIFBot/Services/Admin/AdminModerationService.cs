@@ -44,27 +44,50 @@ namespace FindIFBot.Services.Admin
 
         public async Task PublishAsync(long userId, StoredMessage stored)
         {
+            // Claim the pending request atomically first. If another (double-delivered) callback
+            // already claimed it, skip — this guarantees the post is published to the channel once.
+            var claimed = await _historyStatus.TryTransitionAsync(userId, stored.MessageId, RequestStatus.Approved);
+            if (!claimed)
+            {
+                await _logger.LogWarning(Component,
+                    $"Publish skipped: request already moderated | UserId: {userId} | MessageId: {stored.MessageId}");
+                return;
+            }
+
             var channelLink = await _publisher.PublishAsync(stored);
+            await _historyStatus.SetChannelLinkAsync(userId, stored.MessageId, channelLink);
             await _userNotifier.NotifyPublishedAsync(userId, channelLink);
 
             await _logger.LogInfo(Component,
                 $"Request published | UserId: {userId} | MessageId: {stored.MessageId} | ChannelLink: {channelLink} | Photos: {stored.Photos.Count}");
-
-            await _historyStatus.MarkAsync(userId, stored.MessageId, RequestStatus.Approved, channelLink);
         }
 
         public async Task RejectAsync(long userId, int messageId)
         {
+            var claimed = await _historyStatus.TryTransitionAsync(userId, messageId, RequestStatus.Rejected);
+            if (!claimed)
+            {
+                await _logger.LogWarning(Component,
+                    $"Reject skipped: request already moderated | UserId: {userId} | MessageId: {messageId}");
+                return;
+            }
+
             await _userNotifier.NotifyRejectedAsync(userId, messageId);
             await _logger.LogInfo(Component, $"Request rejected | UserId: {userId} | MessageId: {messageId}");
-            await _historyStatus.MarkAsync(userId, messageId, RequestStatus.Rejected);
         }
 
         public async Task MarkDuplicateAsync(long userId, int messageId)
         {
+            var claimed = await _historyStatus.TryTransitionAsync(userId, messageId, RequestStatus.Duplicate);
+            if (!claimed)
+            {
+                await _logger.LogWarning(Component,
+                    $"Duplicate skipped: request already moderated | UserId: {userId} | MessageId: {messageId}");
+                return;
+            }
+
             await _userNotifier.NotifyDuplicateAsync(userId, messageId);
             await _logger.LogInfo(Component, $"Request marked as duplicate | UserId: {userId} | MessageId: {messageId}");
-            await _historyStatus.MarkAsync(userId, messageId, RequestStatus.Duplicate);
         }
 
         public async Task CancelAskAsync(long userId, int messageId)
@@ -72,9 +95,9 @@ namespace FindIFBot.Services.Admin
             await _userNotifier.NotifyCancelledAsync(userId, messageId);
             await _logger.LogInfo(Component, $"User cancelled ask request | UserId: {userId} | MessageId: {messageId}");
 
-            var session = _sessions.Get(userId);
+            var session = await _sessions.GetAsync(userId);
             session.State = UserState.Idle;
-            _sessions.Save(session);
+            await _sessions.SaveAsync(session);
         }
     }
 }

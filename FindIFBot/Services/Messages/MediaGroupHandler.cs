@@ -3,7 +3,6 @@ using FindIFBot.EF.Entities;
 using FindIFBot.EF.Repositories;
 using FindIFBot.Helpers;
 using FindIFBot.Helpers.Logs;
-using Microsoft.Extensions.DependencyInjection;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
@@ -13,38 +12,37 @@ namespace FindIFBot.Services.Messages
     public class MediaGroupHandler : IMediaGroupHandler
     {
         private const string Component = "MediaGroup";
-        private static readonly TimeSpan BufferDelay = TimeSpan.FromSeconds(2);
 
         private readonly ITelegramBotClient _bot;
         private readonly IUserSessionRepository _sessions;
         private readonly IMediaGroupBuffer _buffer;
+        private readonly IMediaGroupQueue _queue;
         private readonly IMessageStorageService _storage;
         private readonly ISubmissionValidator _validator;
         private readonly IAskConfirmationService _confirmation;
         private readonly IMessageCommandRouter _commandRouter;
         private readonly IAppLogger<MediaGroupHandler> _logger;
-        private readonly IServiceScopeFactory _scopeFactory;
 
         public MediaGroupHandler(
             ITelegramBotClient bot,
             IUserSessionRepository sessions,
             IMediaGroupBuffer buffer,
+            IMediaGroupQueue queue,
             IMessageStorageService storage,
             ISubmissionValidator validator,
             IAskConfirmationService confirmation,
             IMessageCommandRouter commandRouter,
-            IAppLogger<MediaGroupHandler> logger,
-            IServiceScopeFactory scopeFactory)
+            IAppLogger<MediaGroupHandler> logger)
         {
             _bot = bot;
             _sessions = sessions;
             _buffer = buffer;
+            _queue = queue;
             _storage = storage;
             _validator = validator;
             _confirmation = confirmation;
             _commandRouter = commandRouter;
             _logger = logger;
-            _scopeFactory = scopeFactory;
         }
 
         public async Task BufferAsync(Message message, long userId)
@@ -60,7 +58,7 @@ namespace FindIFBot.Services.Messages
                 return;
             }
 
-            _ = Task.Run(() => ProcessBufferedGroupAsync(userId, mediaGroupId));
+            await _queue.EnqueueAsync(new MediaGroupWorkItem(userId, mediaGroupId));
         }
 
         public async Task ProcessAsync(
@@ -114,7 +112,7 @@ namespace FindIFBot.Services.Messages
                 }
             }
 
-            var stored = _storage.StoreMediaGroup(captionMessage, photos);
+            var stored = await _storage.StoreMediaGroupAsync(captionMessage, photos);
 
             await _logger.LogInfo(Component,
                 $"Stored media group | UserId: {userId} | MessageId: {stored.MessageId} | " +
@@ -128,44 +126,6 @@ namespace FindIFBot.Services.Messages
 
             var normalized = (stored.Text ?? string.Empty).ToLowerInvariant();
             await _commandRouter.RouteAsync(captionMessage, normalized);
-        }
-
-        private async Task ProcessBufferedGroupAsync(long userId, string mediaGroupId)
-        {
-            await Task.Delay(BufferDelay);
-
-            if (!_buffer.TryTake(userId, mediaGroupId, out var group))
-            {
-                await _logger.LogWarning(Component,
-                    $"Media group buffer empty or removed | user={userId} | groupId={mediaGroupId}");
-                return;
-            }
-
-            try
-            {
-                using var scope = _scopeFactory.CreateScope();
-                var sessions = scope.ServiceProvider.GetRequiredService<IUserSessionRepository>();
-                var history = scope.ServiceProvider.GetRequiredService<IUserRequestHistoryRepository>();
-                var handler = scope.ServiceProvider.GetRequiredService<IMediaGroupHandler>();
-
-                var currentSession = sessions.Get(userId);
-
-                if (currentSession == null)
-                {
-                    await _logger.LogError(Component, $"No session found in media group background task | user={userId}");
-                    return;
-                }
-
-                await _logger.LogInfo(Component,
-                    $"Processing media group in fresh scope | user={userId} | state={currentSession.State} | photos={group.Count}");
-
-                await handler.ProcessAsync(group, currentSession, history);
-            }
-            catch (Exception ex)
-            {
-                await _logger.LogError(Component,
-                    $"Media group background task failed | user={userId} | ex={ex.Message}\n{ex.StackTrace}");
-            }
         }
 
         private async Task SendValidationErrorAsync(
@@ -186,7 +146,7 @@ namespace FindIFBot.Services.Messages
             );
 
             session.State = UserState.Idle;
-            _sessions.Save(session);
+            await _sessions.SaveAsync(session);
         }
     }
 }

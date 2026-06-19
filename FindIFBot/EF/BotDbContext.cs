@@ -7,6 +7,7 @@ namespace FindIFBot.EF
     {
         public DbSet<UserSession> UserSessions { get; set; }
         public DbSet<UserRequest> UserRequests { get; set; }
+        public DbSet<PendingSubmission> PendingSubmissions { get; set; }
 
         public BotDbContext(DbContextOptions<BotDbContext> options)
         : base(options)
@@ -49,6 +50,19 @@ namespace FindIFBot.EF
                 e.HasIndex(e => e.UserId);
                 e.HasIndex(e => new { e.UserId, e.SubmittedAt });
                 e.HasIndex(e => e.Status);
+            });
+
+            modelBuilder.Entity<PendingSubmission>(e =>
+            {
+                e.HasKey(p => p.MessageId);
+                e.Property(p => p.MessageId).ValueGeneratedNever();
+                e.Property(p => p.UserId).IsRequired();
+                e.Property(p => p.ChatId).IsRequired();
+                e.Property(p => p.PhotosJson).IsRequired();
+                e.Property(p => p.MediaGroupId).HasMaxLength(64);
+                e.Property(p => p.CreatedAtUtc).IsRequired();
+
+                e.HasIndex(p => p.CreatedAtUtc);
             });
         }
     }
