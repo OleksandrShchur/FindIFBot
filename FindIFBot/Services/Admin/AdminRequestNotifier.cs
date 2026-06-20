@@ -13,6 +13,7 @@ namespace FindIFBot.Services.Admin
     {
         private readonly ITelegramBotClient _bot;
         private readonly TelegramOptions _options;
+        private static readonly LinkPreviewOptions NoPreview = new() { IsDisabled = true };
 
         public AdminRequestNotifier(
             ITelegramBotClient bot,
@@ -34,7 +35,7 @@ namespace FindIFBot.Services.Admin
                 $"\n<b>Language Code:</b> {Format(userInfo.LanguageCode)}" +
                 $"\n<b>Is Bot:</b> {(userInfo.IsBot ? "✅ Так" : "❌ Ні")}" +
                 $"\n<b>Is Premium:</b> {(userInfo.IsPremium ? "✅ Так" : "❌ Ні")}",
-                linkPreviewOptions: new LinkPreviewOptions { IsDisabled = true },
+                linkPreviewOptions: NoPreview,
                 parseMode: ParseMode.Html);
 
             var keyboard = new InlineKeyboardMarkup(new[]
@@ -60,7 +61,7 @@ namespace FindIFBot.Services.Admin
                 await _bot.SendMessage(
                     _options.AdminId, 
                     "🛠 Дії модерації:", 
-                    linkPreviewOptions: new LinkPreviewOptions { IsDisabled = true },
+                    linkPreviewOptions: NoPreview,
                     replyMarkup: keyboard
                 );
             }
@@ -69,7 +70,7 @@ namespace FindIFBot.Services.Admin
                 await _bot.SendMessage(
                     _options.AdminId, 
                     stored.Text ?? "📝 (тільки текст без вмісту)", 
-                    linkPreviewOptions: new LinkPreviewOptions { IsDisabled = true },
+                    linkPreviewOptions: NoPreview,
                     replyMarkup: keyboard
                 );
             }

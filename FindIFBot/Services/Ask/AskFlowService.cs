@@ -22,6 +22,7 @@ namespace FindIFBot.Services.Ask
         private readonly IAppLogger<AskFlowService> _logger;
         private readonly TelegramOptions _options;
         private readonly AskHandler _askHandler;
+        private static readonly LinkPreviewOptions NoPreview = new() { IsDisabled = true };
 
         public AskFlowService(
             ITelegramBotClient bot,
@@ -71,7 +72,7 @@ namespace FindIFBot.Services.Ask
                 chatId,
                 _askHandler.Handle(),
                 replyMarkup: new ReplyKeyboardRemove(),
-                linkPreviewOptions: new LinkPreviewOptions { IsDisabled = true },
+                linkPreviewOptions: NoPreview,
                 parseMode: ParseMode.Html
             );
         }
@@ -86,7 +87,7 @@ namespace FindIFBot.Services.Ask
                 "🔒 <b>Щоб надіслати запит, потрібно бути підписаним на наш канал.</b>\n\n" +
                 "Будь ласка, підпишіться на канал і після цього знову натисніть «📨 Надіслати запит» або введіть /ask.",
                 replyMarkup: keyboard,
-                linkPreviewOptions: new LinkPreviewOptions { IsDisabled = true },
+                linkPreviewOptions: NoPreview,
                 parseMode: ParseMode.Html
             );
         }

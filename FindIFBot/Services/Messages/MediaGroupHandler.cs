@@ -11,6 +11,7 @@ namespace FindIFBot.Services.Messages
 {
     public class MediaGroupHandler : IMediaGroupHandler
     {
+        private static readonly LinkPreviewOptions NoPreview = new() { IsDisabled = true };
         private const string Component = "MediaGroup";
 
         private readonly ITelegramBotClient _bot;
@@ -94,7 +95,7 @@ namespace FindIFBot.Services.Messages
                         $"З {totalMediaCount} файлів оброблено тільки <b>{photos.Count} фото</b>.\n" +
                         "Відео, GIF, документи та інші типи <b>ігноруються</b>.",
                         replyMarkup: Keyboards.GetKeyboard(hasHistory),
-                        linkPreviewOptions: new LinkPreviewOptions { IsDisabled = true },
+                        linkPreviewOptions: NoPreview,
                         parseMode: ParseMode.Html
                     );
                 }
@@ -141,7 +142,7 @@ namespace FindIFBot.Services.Messages
                 message.Chat.Id,
                 errorMessage,
                 replyMarkup: Keyboards.GetKeyboard(hasHistory),
-                linkPreviewOptions: new LinkPreviewOptions { IsDisabled = true },
+                linkPreviewOptions: NoPreview,
                 parseMode: ParseMode.Html
             );
 

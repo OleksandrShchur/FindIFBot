@@ -3,6 +3,7 @@ using Microsoft.Extensions.Options;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Exceptions;
+using Telegram.Bot.Types.Enums;
 
 namespace FindIFBot.Helpers.Logs;
 
@@ -11,6 +12,7 @@ public class AppLogger<T> : IAppLogger<T>
     private readonly TelegramOptions _options;
     private readonly ITelegramBotClient _bot;
     private readonly ILogger<T> _logger;
+    private static readonly LinkPreviewOptions NoPreview = new() { IsDisabled = true };
 
     public AppLogger(ITelegramBotClient bot, IOptions<TelegramOptions> options, ILogger<T> logger)
     {
@@ -58,7 +60,8 @@ public class AppLogger<T> : IAppLogger<T>
                 await _bot.SendMessage(
                     chatId: _options.LogsOutputChannel,
                     text: text,
-                    linkPreviewOptions: new LinkPreviewOptions { IsDisabled = true },
+                    linkPreviewOptions: NoPreview,
+                    parseMode: ParseMode.Html,
                     messageThreadId: threadId);
 
                 return;

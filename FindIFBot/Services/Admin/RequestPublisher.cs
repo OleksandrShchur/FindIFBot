@@ -12,6 +12,7 @@ namespace FindIFBot.Services.Admin
     {
         private readonly ITelegramBotClient _bot;
         private readonly TelegramOptions _options;
+        private static readonly LinkPreviewOptions NoPreview = new() { IsDisabled = true };
 
         public RequestPublisher(
             ITelegramBotClient bot,
@@ -26,7 +27,16 @@ namespace FindIFBot.Services.Admin
             var postText = PostTemplate.Build(stored.Text, _options);
             var postId = 0;
 
-            if (stored.Photos.Count > 0)
+            if (stored.Photos.Count == 1)
+            {
+                var result = await _bot.SendPhoto(
+                    _options.UserOutputChannel,
+                    stored.Photos[0],
+                    caption: postText,
+                    parseMode: ParseMode.Html);
+                postId = result.MessageId;
+            }
+            else if (stored.Photos.Count > 1)
             {
                 var media = stored.Photos
                     .Select((id, i) => new InputMediaPhoto(id)
@@ -42,11 +52,10 @@ namespace FindIFBot.Services.Admin
             else
             {
                 var result = await _bot.SendMessage(
-                    _options.UserOutputChannel, 
-                    postText, 
-                    linkPreviewOptions: new LinkPreviewOptions { IsDisabled = true },
-                    parseMode: ParseMode.Html
-                );
+                    _options.UserOutputChannel,
+                    postText,
+                    linkPreviewOptions: NoPreview,
+                    parseMode: ParseMode.Html);
                 postId = result.MessageId;
             }
 
