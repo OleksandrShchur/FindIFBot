@@ -114,6 +114,7 @@ builder.Services.AddScoped<IMessageCommandRouter, MessageCommandRouter>();
 builder.Services.AddScoped<IMessageDispatchService, MessageDispatchService>();
 builder.Services.AddScoped<IAsyncCommandHandler, StartHandler>();
 builder.Services.AddScoped<IAsyncCommandHandler, HistoryHandler>();
+builder.Services.AddScoped<IAsyncCommandHandler, AdsCollaborationHandler>();
 builder.Services.AddScoped<SupportUsHandler>();
 builder.Services.AddScoped<ChannelLinkHandler>();
 builder.Services.AddScoped<AskHandler>();

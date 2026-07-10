@@ -6,6 +6,7 @@
         public long AdminId { get; init; }
         public string UserOutputChannel { get; init; } = string.Empty;
         public string LinkToChannel { get; init; } = string.Empty;
+        public string DirectChatLink { get; init; } = string.Empty;
         public string ChatInviteLink { get; init; } = string.Empty;
         public string BotUsername { get; init; } = string.Empty;
         public string LogsOutputChannel { get; init; } = string.Empty;
