@@ -14,6 +14,7 @@ namespace FindIFBot.Helpers
     {
         public const string Start = "/start";
         public const string Ask = "/ask";
+        public const string Ads = "/ads";
         public const string Help = "/help";
         public const string Policy = "/policy";
         public const string Support = "/support";
@@ -28,6 +29,7 @@ namespace FindIFBot.Helpers
         private static readonly string[] SupportTriggers = { Support, "❤️ підтримати", "підтримати" };
         private static readonly string[] ChannelTriggers = { Channel, "🔗 канал", "канал" };
         private static readonly string[] HistoryTriggers = { History, "📋 історія запитів", "історія запитів" };
+        private static readonly string[] AdsCollabTriggers = { Ads, "🤝 реклама та співпраця", "реклама та співпраця" };
 
         /// <summary>Trims and lower-cases input so command matching is case-insensitive and whitespace-tolerant.</summary>
         public static string Normalize(string? value) =>
@@ -40,5 +42,6 @@ namespace FindIFBot.Helpers
         public static bool IsSupport(string normalized) => SupportTriggers.Contains(normalized);
         public static bool IsChannel(string normalized) => ChannelTriggers.Contains(normalized);
         public static bool IsHistory(string normalized) => HistoryTriggers.Contains(normalized);
+        public static bool IsAdsCollaboration(string normalized) => AdsCollabTriggers.Contains(normalized);
     }
 }

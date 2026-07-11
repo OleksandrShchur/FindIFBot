@@ -15,6 +15,7 @@ namespace FindIFBot.Services.Messages
 
         private readonly ITelegramBotClient _bot;
         private readonly IAsyncCommandHandler _historyHandler;
+        private readonly IAsyncCommandHandler _adsCollaborationHandler;
         private readonly IUserRequestHistoryRepository _history;
         private readonly IAppLogger<MessageCommandRouter> _logger;
         private readonly HelpHandler _helpHandler;
@@ -36,6 +37,7 @@ namespace FindIFBot.Services.Messages
         {
             _bot = bot;
             _historyHandler = handlers.OfType<HistoryHandler>().Single();
+            _adsCollaborationHandler = handlers.OfType<AdsCollaborationHandler>().Single();
             _history = history;
             _logger = logger;
             _helpHandler = helpHandler;
@@ -53,6 +55,13 @@ namespace FindIFBot.Services.Messages
             if (BotCommands.IsHistory(normalized))
             {
                 await _historyHandler.HandleAsync(_bot, message);
+                return;
+            }
+
+            if (BotCommands.IsAdsCollaboration(normalized))
+            {
+                await _logger.LogInfo(Component, $"Ads/collaboration command handled: {normalized} | UserId: {userId}");
+                await _adsCollaborationHandler.HandleAsync(_bot, message);
                 return;
             }
 
