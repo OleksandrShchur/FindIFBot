@@ -23,13 +23,13 @@ namespace FindIFBot.Helpers
 
         // Trigger sets are stored in normalized form so they can be compared directly
         // against the output of Normalize(). Keep the button captions in sync with Keyboards.cs.
-        private static readonly string[] AskTriggers = { Ask, "📨 надіслати запит", "надіслати запит" };
-        private static readonly string[] HelpTriggers = { Help, "ℹ️ довідка", "довідка" };
+        private static readonly string[] AskTriggers = { Ask, "📨 надіслати запит", "надіслати запит", "запит" };
+        private static readonly string[] HelpTriggers = { Help, "ℹ️ довідка", "довідка", "допомога" };
         private static readonly string[] PolicyTriggers = { Policy, "📜 правила", "правила" };
         private static readonly string[] SupportTriggers = { Support, "❤️ підтримати", "підтримати" };
         private static readonly string[] ChannelTriggers = { Channel, "🔗 канал", "канал" };
-        private static readonly string[] HistoryTriggers = { History, "📋 історія запитів", "історія запитів" };
-        private static readonly string[] AdsCollabTriggers = { Ads, "🤝 реклама та співпраця", "реклама та співпраця" };
+        private static readonly string[] HistoryTriggers = { History, "📋 історія запитів", "історія запитів", "історія" };
+        private static readonly string[] AdsCollabTriggers = { Ads, "🤝 реклама та співпраця", "реклама та співпраця", "реклама", "співпраця" };
 
         /// <summary>Trims and lower-cases input so command matching is case-insensitive and whitespace-tolerant.</summary>
         public static string Normalize(string? value) =>
