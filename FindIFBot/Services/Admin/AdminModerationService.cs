@@ -90,6 +90,20 @@ namespace FindIFBot.Services.Admin
             await _logger.LogInfo(Component, $"Request marked as duplicate | UserId: {userId} | MessageId: {messageId}");
         }
 
+        public async Task MarkAdvertisementAsync(long userId, int messageId)
+        {
+            var claimed = await _historyStatus.TryTransitionAsync(userId, messageId, RequestStatus.Advertisement);
+            if (!claimed)
+            {
+                await _logger.LogWarning(Component,
+                    $"Advertisement skipped: request already moderated | UserId: {userId} | MessageId: {messageId}");
+                return;
+            }
+
+            await _userNotifier.NotifyAdvertisementAsync(userId, messageId);
+            await _logger.LogInfo(Component, $"Request marked as advertisement | UserId: {userId} | MessageId: {messageId}");
+        }
+
         public async Task CancelAskAsync(long userId, int messageId)
         {
             await _userNotifier.NotifyCancelledAsync(userId, messageId);

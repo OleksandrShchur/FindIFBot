@@ -5,6 +5,7 @@
         Pending,
         Approved,
         Rejected,
-        Duplicate
+        Duplicate,
+        Advertisement
     }
 }

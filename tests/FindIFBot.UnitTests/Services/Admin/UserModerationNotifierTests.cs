@@ -1,0 +1,53 @@
+using FindIFBot.Configuration;
+using FindIFBot.EF.Repositories;
+using FindIFBot.Services.Admin;
+using FindIFBot.UnitTests.TestSupport;
+using Microsoft.Extensions.Options;
+using Telegram.Bot;
+using Telegram.Bot.Requests;
+using Telegram.Bot.Types.Enums;
+using Telegram.Bot.Types.ReplyMarkups;
+
+namespace FindIFBot.UnitTests.Services.Admin
+{
+    public class UserModerationNotifierTests
+    {
+        private const long UserId = 555;
+        private const int MessageId = 77;
+        private const string DirectLink = "https://t.me/ask_frankivsk?direct";
+
+        private readonly ITelegramBotClient _bot = Substitute.For<ITelegramBotClient>();
+        private readonly IUserRequestHistoryRepository _history = Substitute.For<IUserRequestHistoryRepository>();
+        private readonly UserModerationNotifier _sut;
+
+        public UserModerationNotifierTests()
+        {
+            var options = Options.Create(new TelegramOptions { DirectChatLink = DirectLink });
+            _sut = new UserModerationNotifier(_bot, _history, options);
+        }
+
+        [Fact]
+        public async Task NotifyAdvertisementAsync_SendsMessageToUserWithDirectChatButton()
+        {
+            await _sut.NotifyAdvertisementAsync(UserId, MessageId);
+
+            var sent = _bot.SingleRequest<SendMessageRequest>();
+            sent.ChatId.Identifier.Should().Be(UserId);
+
+            var keyboard = sent.ReplyMarkup.Should().BeOfType<InlineKeyboardMarkup>().Subject;
+            var button = keyboard.InlineKeyboard.SelectMany(row => row).Single();
+            button.Url.Should().Be(DirectLink);
+        }
+
+        [Fact]
+        public async Task NotifyAdvertisementAsync_RepliesToOriginalRequestUsingHtml()
+        {
+            await _sut.NotifyAdvertisementAsync(UserId, MessageId);
+
+            var sent = _bot.SingleRequest<SendMessageRequest>();
+            sent.ReplyParameters!.MessageId.Should().Be(MessageId);
+            sent.ParseMode.Should().Be(ParseMode.Html);
+            sent.Text.Should().Contain("реклам");
+        }
+    }
+}
