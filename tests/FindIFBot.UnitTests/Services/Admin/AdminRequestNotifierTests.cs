@@ -1,0 +1,66 @@
+using FindIFBot.Configuration;
+using FindIFBot.Domain;
+using FindIFBot.Persistence;
+using FindIFBot.Services.Admin;
+using FindIFBot.UnitTests.TestSupport;
+using Microsoft.Extensions.Options;
+using Telegram.Bot;
+using Telegram.Bot.Requests;
+using Telegram.Bot.Types.ReplyMarkups;
+
+namespace FindIFBot.UnitTests.Services.Admin
+{
+    public class AdminRequestNotifierTests
+    {
+        private const long AdminId = 1000;
+        private const long UserId = 321;
+        private const int MessageId = 99;
+
+        private readonly ITelegramBotClient _bot = Substitute.For<ITelegramBotClient>();
+        private readonly AdminRequestNotifier _sut;
+
+        public AdminRequestNotifierTests()
+        {
+            _sut = new AdminRequestNotifier(_bot, Options.Create(new TelegramOptions { AdminId = AdminId }));
+        }
+
+        [Fact]
+        public async Task SendToAdminAsync_TextOnly_IncludesAdvertisementButtonWithCallbackData()
+        {
+            var stored = new StoredMessage(UserId, UserId, "promo text", [], null, MessageId);
+            var userInfo = new UserInfo { Id = UserId };
+
+            await _sut.SendToAdminAsync(stored, userInfo);
+
+            var moderation = _bot.SentRequests<SendMessageRequest>()
+                .Single(r => r.ReplyMarkup is InlineKeyboardMarkup);
+            var buttons = ((InlineKeyboardMarkup)moderation.ReplyMarkup!)
+                .InlineKeyboard.SelectMany(row => row).ToList();
+
+            var adsButton = buttons.Should()
+                .ContainSingle(b => b.CallbackData == $"!ask|{UserId}|{MessageId}").Subject;
+            adsButton.Text.Should().Contain("Реклама");
+        }
+
+        [Fact]
+        public async Task SendToAdminAsync_TextOnly_KeepsApproveRejectDuplicateButtons()
+        {
+            var stored = new StoredMessage(UserId, UserId, "promo text", [], null, MessageId);
+            var userInfo = new UserInfo { Id = UserId };
+
+            await _sut.SendToAdminAsync(stored, userInfo);
+
+            var moderation = _bot.SentRequests<SendMessageRequest>()
+                .Single(r => r.ReplyMarkup is InlineKeyboardMarkup);
+            var callbackData = ((InlineKeyboardMarkup)moderation.ReplyMarkup!)
+                .InlineKeyboard.SelectMany(row => row)
+                .Select(b => b.CallbackData)
+                .ToList();
+
+            callbackData.Should().Contain($"+ask|{UserId}|{MessageId}");
+            callbackData.Should().Contain($"-ask|{UserId}|{MessageId}");
+            callbackData.Should().Contain($"?ask|{UserId}|{MessageId}");
+            callbackData.Should().Contain($"!ask|{UserId}|{MessageId}");
+        }
+    }
+}
