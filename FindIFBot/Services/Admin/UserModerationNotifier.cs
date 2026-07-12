@@ -1,8 +1,11 @@
+using FindIFBot.Configuration;
 using FindIFBot.EF.Repositories;
 using FindIFBot.Helpers;
+using Microsoft.Extensions.Options;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
+using Telegram.Bot.Types.ReplyMarkups;
 
 namespace FindIFBot.Services.Admin
 {
@@ -10,14 +13,17 @@ namespace FindIFBot.Services.Admin
     {
         private readonly ITelegramBotClient _bot;
         private readonly IUserRequestHistoryRepository _history;
+        private readonly TelegramOptions _options;
         private static readonly LinkPreviewOptions NoPreview = new() { IsDisabled = true };
 
         public UserModerationNotifier(
             ITelegramBotClient bot,
-            IUserRequestHistoryRepository history)
+            IUserRequestHistoryRepository history,
+            IOptions<TelegramOptions> options)
         {
             _bot = bot;
             _history = history;
+            _options = options.Value;
         }
 
         public async Task NotifySubmittedAsync(long chatId)
@@ -71,6 +77,26 @@ namespace FindIFBot.Services.Admin
                 "Статус запитів → /history або кнопка «📋 Історія запитів»",
                 replyParameters: new ReplyParameters { MessageId = messageId },
                 replyMarkup: Keyboards.GetKeyboard(await _history.HasHistory(userId)),
+                linkPreviewOptions: NoPreview,
+                parseMode: ParseMode.Html
+            );
+        }
+
+        public async Task NotifyAdvertisementAsync(long userId, int messageId)
+        {
+            var keyboard = new InlineKeyboardMarkup(
+                InlineKeyboardButton.WithUrl("✍️ Написати в дірект", _options.DirectChatLink));
+
+            await _bot.SendMessage(
+                userId,
+                "📣 <b>Ваш запит схожий на рекламу</b>\n\n" +
+                "Дякуємо за допис! Схоже, він просуває ваш бізнес, послугу чи подію — " +
+                "а такі публікації ми розміщуємо на умовах реклами та співпраці. 🤝\n\n" +
+                "Це не відмова — ми з радістю розкажемо про вас нашій спільноті Івано-Франківська. " +
+                "Формат, вартість та умови розміщення ми узгоджуємо індивідуально в приватному чаті.\n\n" +
+                "👇 Натисніть кнопку нижче, щоб написати нам у дірект — і ми все організуємо:",
+                replyParameters: new ReplyParameters { MessageId = messageId },
+                replyMarkup: keyboard,
                 linkPreviewOptions: NoPreview,
                 parseMode: ParseMode.Html
             );

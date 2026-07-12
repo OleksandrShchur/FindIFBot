@@ -47,7 +47,8 @@ namespace FindIFBot.Services.Admin
                 },
                 new[]
                 {
-                    InlineKeyboardButton.WithCallbackData("📋 Дублікат посту", $"?ask|{stored.UserId}|{stored.MessageId}")
+                    InlineKeyboardButton.WithCallbackData("📋 Дублікат посту", $"?ask|{stored.UserId}|{stored.MessageId}"),
+                    InlineKeyboardButton.WithCallbackData("📣 Реклама", $"!ask|{stored.UserId}|{stored.MessageId}")
                 }
             });
 

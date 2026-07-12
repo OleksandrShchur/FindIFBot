@@ -81,6 +81,12 @@ namespace FindIFBot.Services.Admin
                     await _moderation.MarkDuplicateAsync(data.UserId, data.MessageId);
                     await CleanupAsync(callback, data.MessageId);
                     return;
+                case "!ask":
+                    await _logger.LogInfo(Component,
+                        $"Admin marked ask as advertisement | UserId: {data.UserId} | MessageId: {data.MessageId}");
+                    await _moderation.MarkAdvertisementAsync(data.UserId, data.MessageId);
+                    await CleanupAsync(callback, data.MessageId);
+                    return;
                 case "proceed":
                     await HandleProceedAsync(callback, data, stored);
                     return;
