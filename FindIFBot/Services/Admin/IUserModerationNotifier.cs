@@ -7,6 +7,7 @@ namespace FindIFBot.Services.Admin
         Task NotifyRejectedAsync(long userId, int messageId);
         Task NotifyDuplicateAsync(long userId, int messageId);
         Task NotifyAdvertisementAsync(long userId, int messageId);
+        Task NotifyNeedsAttentionAsync(long userId, int messageId);
         Task NotifyCancelledAsync(long userId, int messageId);
     }
 }

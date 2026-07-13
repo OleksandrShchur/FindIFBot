@@ -10,6 +10,7 @@ namespace FindIFBot.Services.Admin
         Task RejectAsync(long userId, int messageId);
         Task MarkDuplicateAsync(long userId, int messageId);
         Task MarkAdvertisementAsync(long userId, int messageId);
+        Task MarkNeedsAttentionAsync(long userId, int messageId);
         Task CancelAskAsync(long userId, int messageId);
     }
 }

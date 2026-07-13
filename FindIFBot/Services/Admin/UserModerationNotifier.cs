@@ -102,6 +102,24 @@ namespace FindIFBot.Services.Admin
             );
         }
 
+        public async Task NotifyNeedsAttentionAsync(long userId, int messageId)
+        {
+            var keyboard = new InlineKeyboardMarkup(
+                InlineKeyboardButton.WithUrl("✍️ Написати в дірект", _options.DirectChatLink));
+
+            await _bot.SendMessage(
+                userId,
+                "💬 <b>Модератор має уточнення</b>\n\n" +
+                "Ми переглянули ваш запит і хочемо коротко уточнити кілька деталей перед публікацією.\n\n" +
+                "Напишіть нам у дірект — так швидше все узгодимо 🙌\n\n" +
+                "👇 Натисніть кнопку нижче:",
+                replyParameters: new ReplyParameters { MessageId = messageId },
+                replyMarkup: keyboard,
+                linkPreviewOptions: NoPreview,
+                parseMode: ParseMode.Html
+            );
+        }
+
         public async Task NotifyCancelledAsync(long userId, int messageId)
         {
             await _bot.SendMessage(

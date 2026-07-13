@@ -6,6 +6,7 @@
         Approved,
         Rejected,
         Duplicate,
-        Advertisement
+        Advertisement,
+        NeedsAttention
     }
 }
