@@ -43,6 +43,24 @@ namespace FindIFBot.UnitTests.Services.Admin
         }
 
         [Fact]
+        public async Task SendToAdminAsync_TextOnly_IncludesNeedsAttentionButtonWithCallbackData()
+        {
+            var stored = new StoredMessage(UserId, UserId, "promo text", [], null, MessageId);
+            var userInfo = new UserInfo { Id = UserId };
+
+            await _sut.SendToAdminAsync(stored, userInfo);
+
+            var moderation = _bot.SentRequests<SendMessageRequest>()
+                .Single(r => r.ReplyMarkup is InlineKeyboardMarkup);
+            var buttons = ((InlineKeyboardMarkup)moderation.ReplyMarkup!)
+                .InlineKeyboard.SelectMany(row => row).ToList();
+
+            var attentionButton = buttons.Should()
+                .ContainSingle(b => b.CallbackData == $"*ask|{UserId}|{MessageId}").Subject;
+            attentionButton.Text.Should().Contain("Уточнити");
+        }
+
+        [Fact]
         public async Task SendToAdminAsync_TextOnly_KeepsApproveRejectDuplicateButtons()
         {
             var stored = new StoredMessage(UserId, UserId, "promo text", [], null, MessageId);
@@ -61,6 +79,7 @@ namespace FindIFBot.UnitTests.Services.Admin
             callbackData.Should().Contain($"-ask|{UserId}|{MessageId}");
             callbackData.Should().Contain($"?ask|{UserId}|{MessageId}");
             callbackData.Should().Contain($"!ask|{UserId}|{MessageId}");
+            callbackData.Should().Contain($"*ask|{UserId}|{MessageId}");
         }
     }
 }

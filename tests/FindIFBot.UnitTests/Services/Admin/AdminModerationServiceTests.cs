@@ -50,5 +50,32 @@ namespace FindIFBot.UnitTests.Services.Admin
             await _userNotifier.DidNotReceive()
                 .NotifyAdvertisementAsync(Arg.Any<long>(), Arg.Any<int>());
         }
+
+        [Fact]
+        public async Task MarkNeedsAttentionAsync_WhenClaimed_TransitionsToNeedsAttentionAndNotifiesUser()
+        {
+            _historyStatus
+                .TryTransitionAsync(UserId, MessageId, RequestStatus.NeedsAttention)
+                .Returns(true);
+
+            await _sut.MarkNeedsAttentionAsync(UserId, MessageId);
+
+            await _historyStatus.Received(1)
+                .TryTransitionAsync(UserId, MessageId, RequestStatus.NeedsAttention);
+            await _userNotifier.Received(1).NotifyNeedsAttentionAsync(UserId, MessageId);
+        }
+
+        [Fact]
+        public async Task MarkNeedsAttentionAsync_WhenAlreadyModerated_DoesNotNotifyUser()
+        {
+            _historyStatus
+                .TryTransitionAsync(UserId, MessageId, RequestStatus.NeedsAttention)
+                .Returns(false);
+
+            await _sut.MarkNeedsAttentionAsync(UserId, MessageId);
+
+            await _userNotifier.DidNotReceive()
+                .NotifyNeedsAttentionAsync(Arg.Any<long>(), Arg.Any<int>());
+        }
     }
 }
