@@ -104,6 +104,20 @@ namespace FindIFBot.Services.Admin
             await _logger.LogInfo(Component, $"Request marked as advertisement | UserId: {userId} | MessageId: {messageId}");
         }
 
+        public async Task MarkNeedsAttentionAsync(long userId, int messageId)
+        {
+            var claimed = await _historyStatus.TryTransitionAsync(userId, messageId, RequestStatus.NeedsAttention);
+            if (!claimed)
+            {
+                await _logger.LogWarning(Component,
+                    $"Needs attention skipped: request already moderated | UserId: {userId} | MessageId: {messageId}");
+                return;
+            }
+
+            await _userNotifier.NotifyNeedsAttentionAsync(userId, messageId);
+            await _logger.LogInfo(Component, $"Request marked as needs attention | UserId: {userId} | MessageId: {messageId}");
+        }
+
         public async Task CancelAskAsync(long userId, int messageId)
         {
             await _userNotifier.NotifyCancelledAsync(userId, messageId);

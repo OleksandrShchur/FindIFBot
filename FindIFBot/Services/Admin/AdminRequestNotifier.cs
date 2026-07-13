@@ -49,6 +49,10 @@ namespace FindIFBot.Services.Admin
                 {
                     InlineKeyboardButton.WithCallbackData("📋 Дублікат посту", $"?ask|{stored.UserId}|{stored.MessageId}"),
                     InlineKeyboardButton.WithCallbackData("📣 Реклама", $"!ask|{stored.UserId}|{stored.MessageId}")
+                },
+                new[]
+                {
+                    InlineKeyboardButton.WithCallbackData("💬 Уточнити", $"*ask|{stored.UserId}|{stored.MessageId}")
                 }
             });
 

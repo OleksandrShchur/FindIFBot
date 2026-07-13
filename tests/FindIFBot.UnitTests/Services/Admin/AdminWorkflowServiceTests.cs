@@ -54,5 +54,29 @@ namespace FindIFBot.UnitTests.Services.Admin
             await _moderation.DidNotReceive().RejectAsync(Arg.Any<long>(), Arg.Any<int>());
             await _moderation.DidNotReceive().MarkDuplicateAsync(Arg.Any<long>(), Arg.Any<int>());
         }
+
+        [Fact]
+        public async Task HandleCallbackAsync_NeedsAttentionAction_RoutesToModerationAndCleansUp()
+        {
+            var callback = TelegramBuilder.CallbackQuery($"*ask|{UserId}|{MessageId}");
+
+            await _sut.HandleCallbackAsync(callback);
+
+            await _moderation.Received(1).MarkNeedsAttentionAsync(UserId, MessageId);
+            await _messages.Received(1).RemoveAsync(MessageId);
+        }
+
+        [Fact]
+        public async Task HandleCallbackAsync_NeedsAttentionAction_DoesNotApproveRejectDuplicateOrAds()
+        {
+            var callback = TelegramBuilder.CallbackQuery($"*ask|{UserId}|{MessageId}");
+
+            await _sut.HandleCallbackAsync(callback);
+
+            await _moderation.DidNotReceive().PublishAsync(Arg.Any<long>(), Arg.Any<StoredMessage>());
+            await _moderation.DidNotReceive().RejectAsync(Arg.Any<long>(), Arg.Any<int>());
+            await _moderation.DidNotReceive().MarkDuplicateAsync(Arg.Any<long>(), Arg.Any<int>());
+            await _moderation.DidNotReceive().MarkAdvertisementAsync(Arg.Any<long>(), Arg.Any<int>());
+        }
     }
 }
