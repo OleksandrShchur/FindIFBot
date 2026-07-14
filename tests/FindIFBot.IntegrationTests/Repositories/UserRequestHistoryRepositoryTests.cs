@@ -136,5 +136,38 @@ namespace FindIFBot.IntegrationTests.Repositories
             (await repo.GetById(approved.Id))!.ChannelLink.Should().Be("https://t.me/c/approved");
             (await new UserRequestHistoryRepository(db.CreateContext()).GetById(pending.Id))!.ChannelLink.Should().BeNull();
         }
+
+        [Fact]
+        public async Task Given_MixedStatuses_When_GetPendingAsync_Then_ReturnsNewestPendingOnlyCapped()
+        {
+            using var db = new SqliteTestDatabase();
+            var baseTime = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+            for (var i = 0; i < 12; i++)
+            {
+                await new UserRequestHistoryRepository(db.CreateContext()).Add(
+                    RequestBuilder.Create(
+                        userId: 100 + i,
+                        userMessageId: 1000 + i,
+                        status: RequestStatus.Pending,
+                        submittedAt: baseTime.AddHours(i),
+                        adminInfoMessageId: 5000 + i));
+            }
+
+            await new UserRequestHistoryRepository(db.CreateContext()).Add(
+                RequestBuilder.Create(
+                    userId: 999,
+                    userMessageId: 1,
+                    status: RequestStatus.Approved,
+                    submittedAt: baseTime.AddDays(10)));
+
+            var result = await new UserRequestHistoryRepository(db.CreateContext()).GetPendingAsync(10);
+
+            result.Should().HaveCount(10);
+            result.Should().OnlyContain(r => r.Status == RequestStatus.Pending);
+            result.Select(r => r.UserMessageId).Should().ContainInOrder(
+                1011, 1010, 1009, 1008, 1007, 1006, 1005, 1004, 1003, 1002);
+            result.Should().OnlyContain(r => r.AdminInfoMessageId != null);
+        }
     }
 }

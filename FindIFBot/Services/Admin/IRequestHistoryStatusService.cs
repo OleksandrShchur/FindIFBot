@@ -4,7 +4,7 @@ namespace FindIFBot.Services.Admin
 {
     public interface IRequestHistoryStatusService
     {
-        Task AddPendingAsync(long userId, int userMessageId);
+        Task AddPendingAsync(long userId, int userMessageId, int adminInfoMessageId);
 
         /// <summary>
         /// Atomically transitions the user's pending request to <paramref name="status"/>.

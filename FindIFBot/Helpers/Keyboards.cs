@@ -4,7 +4,9 @@ namespace FindIFBot.Helpers
 {
     public static class Keyboards
     {
-        public static ReplyKeyboardMarkup GetKeyboard(bool hasHistory)
+        public const string AdminPendingCaption = "⏳ Черга модерації";
+
+        public static ReplyKeyboardMarkup GetKeyboard(bool hasHistory, bool isAdmin = false)
         {
             var keyboard = new List<KeyboardButton[]>
             {
@@ -12,9 +14,17 @@ namespace FindIFBot.Helpers
                 new KeyboardButton[] { "🤝 Реклама та співпраця" }
             };
 
-            if (hasHistory)
+            if (hasHistory && isAdmin)
+            {
+                keyboard.Add(new KeyboardButton[] { "📋 Історія запитів", AdminPendingCaption });
+            }
+            else if (hasHistory)
             {
                 keyboard.Add(new KeyboardButton[] { "📋 Історія запитів" });
+            }
+            else if (isAdmin)
+            {
+                keyboard.Add(new KeyboardButton[] { AdminPendingCaption });
             }
 
             keyboard.Add(new KeyboardButton[]

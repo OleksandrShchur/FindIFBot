@@ -1,3 +1,4 @@
+using FindIFBot.Configuration;
 using FindIFBot.Domain;
 using FindIFBot.EF.Entities;
 using FindIFBot.EF.Repositories;
@@ -7,6 +8,7 @@ using FindIFBot.Persistence;
 using FindIFBot.Services.Ask;
 using FindIFBot.Services.Messages;
 using FindIFBot.UnitTests.TestSupport;
+using Microsoft.Extensions.Options;
 using Telegram.Bot;
 using Telegram.Bot.Requests;
 using Telegram.Bot.Types;
@@ -17,6 +19,7 @@ namespace FindIFBot.UnitTests.Services.Messages
     public class MessageDispatchServiceTests
     {
         private const long UserId = 100;
+        private const long AdminId = 999;
 
         private readonly ITelegramBotClient _bot = Substitute.For<ITelegramBotClient>();
         private readonly IUserSessionRepository _sessions = Substitute.For<IUserSessionRepository>();
@@ -33,7 +36,8 @@ namespace FindIFBot.UnitTests.Services.Messages
 
         public MessageDispatchServiceTests()
         {
-            _startHandler = new StartHandler(_history);
+            var telegramOptions = Options.Create(new TelegramOptions { AdminId = AdminId });
+            _startHandler = new StartHandler(_history, telegramOptions);
             _storage.StoreSingleAsync(Arg.Any<Message>(), Arg.Any<string?>(), Arg.Any<IReadOnlyList<string>>())
                 .Returns(ci => new StoredMessage(
                     ChatId: ((Message)ci[0]).Chat.Id,
@@ -54,6 +58,7 @@ namespace FindIFBot.UnitTests.Services.Messages
                 _confirmation,
                 _askFlow,
                 _commandRouter,
+                telegramOptions,
                 _logger);
         }
 

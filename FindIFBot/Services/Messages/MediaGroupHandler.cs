@@ -1,8 +1,10 @@
+using FindIFBot.Configuration;
 using FindIFBot.Domain;
 using FindIFBot.EF.Entities;
 using FindIFBot.EF.Repositories;
 using FindIFBot.Helpers;
 using FindIFBot.Helpers.Logs;
+using Microsoft.Extensions.Options;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
@@ -22,6 +24,7 @@ namespace FindIFBot.Services.Messages
         private readonly ISubmissionValidator _validator;
         private readonly IAskConfirmationService _confirmation;
         private readonly IMessageCommandRouter _commandRouter;
+        private readonly TelegramOptions _telegram;
         private readonly IAppLogger<MediaGroupHandler> _logger;
 
         public MediaGroupHandler(
@@ -33,6 +36,7 @@ namespace FindIFBot.Services.Messages
             ISubmissionValidator validator,
             IAskConfirmationService confirmation,
             IMessageCommandRouter commandRouter,
+            IOptions<TelegramOptions> telegram,
             IAppLogger<MediaGroupHandler> logger)
         {
             _bot = bot;
@@ -43,6 +47,7 @@ namespace FindIFBot.Services.Messages
             _validator = validator;
             _confirmation = confirmation;
             _commandRouter = commandRouter;
+            _telegram = telegram.Value;
             _logger = logger;
         }
 
@@ -94,7 +99,7 @@ namespace FindIFBot.Services.Messages
                         "⚠️ <b>Увага:</b> в альбомі є не-фото елементи\n\n" +
                         $"З {totalMediaCount} файлів оброблено тільки <b>{photos.Count} фото</b>.\n" +
                         "Відео, GIF, документи та інші типи <b>ігноруються</b>.",
-                        replyMarkup: Keyboards.GetKeyboard(hasHistory),
+                        replyMarkup: Keyboards.GetKeyboard(hasHistory, userId == _telegram.AdminId),
                         linkPreviewOptions: NoPreview,
                         parseMode: ParseMode.Html
                     );
@@ -141,7 +146,7 @@ namespace FindIFBot.Services.Messages
             await _bot.SendMessage(
                 message.Chat.Id,
                 errorMessage,
-                replyMarkup: Keyboards.GetKeyboard(hasHistory),
+                replyMarkup: Keyboards.GetKeyboard(hasHistory, message.From!.Id == _telegram.AdminId),
                 linkPreviewOptions: NoPreview,
                 parseMode: ParseMode.Html
             );

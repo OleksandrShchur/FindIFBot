@@ -1,5 +1,7 @@
-﻿using FindIFBot.EF.Repositories;
+﻿using FindIFBot.Configuration;
+using FindIFBot.EF.Repositories;
 using FindIFBot.Helpers;
+using Microsoft.Extensions.Options;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
@@ -9,11 +11,13 @@ namespace FindIFBot.Handlers
     public class StartHandler : IAsyncCommandHandler
     {
         private readonly IUserRequestHistoryRepository _history;
+        private readonly TelegramOptions _options;
         private static readonly LinkPreviewOptions NoPreview = new() { IsDisabled = true };
 
-        public StartHandler(IUserRequestHistoryRepository history)
+        public StartHandler(IUserRequestHistoryRepository history, IOptions<TelegramOptions> options)
         {
             _history = history;
+            _options = options.Value;
         }
 
         public async Task HandleAsync(ITelegramBotClient bot, Message message)
@@ -30,7 +34,8 @@ namespace FindIFBot.Handlers
 
             var userId = message.From!.Id;
             var hasHistory = await _history.HasHistory(userId);
-            var markup = Keyboards.GetKeyboard(hasHistory);
+            var isAdmin = userId == _options.AdminId;
+            var markup = Keyboards.GetKeyboard(hasHistory, isAdmin);
 
             await bot.SendMessage(
                 message.Chat.Id,

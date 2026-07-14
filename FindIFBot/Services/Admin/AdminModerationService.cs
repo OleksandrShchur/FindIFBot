@@ -38,8 +38,8 @@ namespace FindIFBot.Services.Admin
                 $"Submitting ask request to moderation | UserId: {stored.UserId} | MessageId: {stored.MessageId} | Photos: {stored.Photos.Count}");
 
             await _userNotifier.NotifySubmittedAsync(stored.ChatId);
-            await _historyStatus.AddPendingAsync(stored.UserId, stored.MessageId);
-            await _adminNotifier.SendToAdminAsync(stored, userInfo);
+            var adminInfoMessageId = await _adminNotifier.SendToAdminAsync(stored, userInfo);
+            await _historyStatus.AddPendingAsync(stored.UserId, stored.MessageId, adminInfoMessageId);
         }
 
         public async Task PublishAsync(long userId, StoredMessage stored)

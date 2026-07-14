@@ -46,6 +46,16 @@ namespace FindIFBot.EF.Repositories
                 .AnyAsync(r => r.UserId == userId);
         }
 
+        public async Task<List<UserRequest>> GetPendingAsync(int limit)
+        {
+            return await _db.UserRequests
+                .AsNoTracking()
+                .Where(r => r.Status == RequestStatus.Pending)
+                .OrderByDescending(r => r.SubmittedAt)
+                .Take(limit)
+                .ToListAsync();
+        }
+
         public async Task<bool> TryTransitionStatusAsync(
             long userId,
             int userMessageId,

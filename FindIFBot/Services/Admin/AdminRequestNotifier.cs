@@ -23,9 +23,9 @@ namespace FindIFBot.Services.Admin
             _options = options.Value;
         }
 
-        public async Task SendToAdminAsync(StoredMessage stored, UserInfo userInfo)
+        public async Task<int> SendToAdminAsync(StoredMessage stored, UserInfo userInfo)
         {
-            await _bot.SendMessage(
+            var infoMessage = await _bot.SendMessage(
                 _options.AdminId,
                 $"Інформація про користувача:" +
                 $"\n\n<b>ID:</b> {userInfo.Id}" +
@@ -79,6 +79,8 @@ namespace FindIFBot.Services.Admin
                     replyMarkup: keyboard
                 );
             }
+
+            return infoMessage.MessageId;
         }
 
         private static string Format(string value) =>

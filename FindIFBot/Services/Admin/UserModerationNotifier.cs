@@ -32,7 +32,7 @@ namespace FindIFBot.Services.Admin
                 chatId,
                 "⏳ <b>Запит відправлено на модерацію!</b>\n\n" +
                 "Очікуйте, будь ласка — наші модератори скоро перевірять ваш допис.\n",
-                replyMarkup: Keyboards.GetKeyboard(true),
+                replyMarkup: Keyboards.GetKeyboard(true, chatId == _options.AdminId),
                 linkPreviewOptions: NoPreview,
                 parseMode: ParseMode.Html
             );
@@ -44,7 +44,7 @@ namespace FindIFBot.Services.Admin
                 userId,
                 "🚀 <b>Готово!</b> Ваш пост уже в каналі!\n\n" +
                 $"<a href=\"{channelLink}\">👉 Переглянути публікацію</a>\n\n",
-                replyMarkup: Keyboards.GetKeyboard(await _history.HasHistory(userId)),
+                replyMarkup: await KeyboardForAsync(userId),
                 linkPreviewOptions: NoPreview,
                 parseMode: ParseMode.Html
             );
@@ -60,7 +60,7 @@ namespace FindIFBot.Services.Admin
                 "Не засмучуйся — спробуй ще раз з іншим матеріалом! 🌱\n" +
                 "Статус усіх твоїх запитів завжди можна подивитись у /history",
                 replyParameters: new ReplyParameters { MessageId = messageId },
-                replyMarkup: Keyboards.GetKeyboard(await _history.HasHistory(userId)),
+                replyMarkup: await KeyboardForAsync(userId),
                 linkPreviewOptions: NoPreview,
                 parseMode: ParseMode.Html
             );
@@ -76,7 +76,7 @@ namespace FindIFBot.Services.Admin
                 "Якщо хочеш надіслати щось нове чи по-іншому — пиши, з радістю розглянемо! 🚀\n" +
                 "Статус запитів → /history або кнопка «📋 Історія запитів»",
                 replyParameters: new ReplyParameters { MessageId = messageId },
-                replyMarkup: Keyboards.GetKeyboard(await _history.HasHistory(userId)),
+                replyMarkup: await KeyboardForAsync(userId),
                 linkPreviewOptions: NoPreview,
                 parseMode: ParseMode.Html
             );
@@ -130,10 +130,15 @@ namespace FindIFBot.Services.Admin
                 "Якщо передумали або хочете надіслати щось інше — просто почніть новий запит!\n" +
                 "Переглянути історію запитів: /history або кнопка «📋 Історія запитів» нижче",
                 replyParameters: new ReplyParameters { MessageId = messageId },
-                replyMarkup: Keyboards.GetKeyboard(await _history.HasHistory(userId)),
+                replyMarkup: await KeyboardForAsync(userId),
                 linkPreviewOptions: NoPreview,
                 parseMode: ParseMode.Html
             );
         }
+
+        private async Task<ReplyKeyboardMarkup> KeyboardForAsync(long userId) =>
+            Keyboards.GetKeyboard(
+                await _history.HasHistory(userId),
+                userId == _options.AdminId);
     }
 }

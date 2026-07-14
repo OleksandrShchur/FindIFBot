@@ -7,7 +7,6 @@ using Telegram.Bot;
 using Telegram.Bot.Exceptions;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
-using Telegram.Bot.Types.ReplyMarkups;
 
 namespace FindIFBot.Handlers
 {
@@ -15,18 +14,24 @@ namespace FindIFBot.Handlers
     {
         private readonly IUserRequestHistoryRepository _history;
         private readonly HistoryOptions _options;
+        private readonly TelegramOptions _telegram;
         private static readonly LinkPreviewOptions NoPreview = new() { IsDisabled = true };
 
-        public HistoryHandler(IUserRequestHistoryRepository history, IOptions<HistoryOptions> options)
+        public HistoryHandler(
+            IUserRequestHistoryRepository history,
+            IOptions<HistoryOptions> options,
+            IOptions<TelegramOptions> telegram)
         {
             _history = history;
             _options = options.Value;
+            _telegram = telegram.Value;
         }
 
         public async Task HandleAsync(ITelegramBotClient bot, Message message)
         {
             var userId = message.From!.Id;
             var chatId = message.Chat.Id;
+            var isAdmin = userId == _telegram.AdminId;
             var allRequests = await _history.GetByUserId(userId);
 
             if (!allRequests.Any())
@@ -35,7 +40,7 @@ namespace FindIFBot.Handlers
                     chatId,
                     "📭 <b>У вас ще немає історії запитів.</b>\n\n" +
                     "Натисніть кнопку нижче, щоб надіслати свій перший запит 👇",
-                    replyMarkup: Keyboards.GetKeyboard(false),
+                    replyMarkup: Keyboards.GetKeyboard(false, isAdmin),
                     linkPreviewOptions: NoPreview,
                     parseMode: ParseMode.Html
                 );
@@ -58,7 +63,7 @@ namespace FindIFBot.Handlers
             var approved = approvedAll.Take(maxItems).ToList();
             var pending = pendingAll.Take(maxItems).ToList();
 
-            var markup = Keyboards.GetKeyboard(true);
+            var markup = Keyboards.GetKeyboard(true, isAdmin);
             var approvedText = "";
 
             if (approved.Any())

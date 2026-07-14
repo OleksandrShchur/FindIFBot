@@ -47,6 +47,8 @@ namespace FindIFBot.EF
                 e.Property(e => e.UserMessageId)
                     .IsRequired();
 
+                e.Property(e => e.AdminInfoMessageId);
+
                 e.HasIndex(e => e.UserId);
                 e.HasIndex(e => new { e.UserId, e.SubmittedAt });
                 e.HasIndex(e => e.Status);

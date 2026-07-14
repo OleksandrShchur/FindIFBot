@@ -20,6 +20,7 @@ namespace FindIFBot.Helpers
         public const string Support = "/support";
         public const string Channel = "/channel";
         public const string History = "/history";
+        public const string Pending = "/pending";
 
         // Trigger sets are stored in normalized form so they can be compared directly
         // against the output of Normalize(). Keep the button captions in sync with Keyboards.cs.
@@ -30,6 +31,12 @@ namespace FindIFBot.Helpers
         private static readonly string[] ChannelTriggers = { Channel, "🔗 канал", "канал" };
         private static readonly string[] HistoryTriggers = { History, "📋 історія запитів", "історія запитів", "історія" };
         private static readonly string[] AdsCollabTriggers = { Ads, "🤝 реклама та співпраця", "реклама та співпраця", "реклама", "співпраця" };
+        private static readonly string[] PendingTriggers =
+        {
+            Pending,
+            "⏳ черга модерації",
+            "черга модерації"
+        };
 
         /// <summary>Trims and lower-cases input so command matching is case-insensitive and whitespace-tolerant.</summary>
         public static string Normalize(string? value) =>
@@ -43,5 +50,6 @@ namespace FindIFBot.Helpers
         public static bool IsChannel(string normalized) => ChannelTriggers.Contains(normalized);
         public static bool IsHistory(string normalized) => HistoryTriggers.Contains(normalized);
         public static bool IsAdsCollaboration(string normalized) => AdsCollabTriggers.Contains(normalized);
+        public static bool IsPending(string normalized) => PendingTriggers.Contains(normalized);
     }
 }

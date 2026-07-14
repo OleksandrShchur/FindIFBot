@@ -14,6 +14,7 @@ namespace FindIFBot.UnitTests.Services.Messages
     public class MessageCommandRouterTests
     {
         private const long UserId = 100;
+        private const long AdminId = 999;
         private const long ChatId = 100;
         private const string DirectLink = "https://t.me/ask_frankivsk?direct";
 
@@ -24,15 +25,27 @@ namespace FindIFBot.UnitTests.Services.Messages
 
         public MessageCommandRouterTests()
         {
-            var telegramOptions = Options.Create(new TelegramOptions { DirectChatLink = DirectLink });
-            var historyHandler = new HistoryHandler(_history, Options.Create(new HistoryOptions()));
+            var telegramOptions = Options.Create(new TelegramOptions
+            {
+                DirectChatLink = DirectLink,
+                AdminId = AdminId
+            });
+            var historyHandler = new HistoryHandler(
+                _history,
+                Options.Create(new HistoryOptions()),
+                telegramOptions);
             var adsHandler = new AdsCollaborationHandler(telegramOptions);
+            var pendingHandler = new AdminPendingHandler(
+                _history,
+                Options.Create(new HistoryOptions()),
+                telegramOptions);
             var helpHandler = new HelpHandler();
 
             _sut = new MessageCommandRouter(
                 _bot,
-                new IAsyncCommandHandler[] { historyHandler, adsHandler },
+                new IAsyncCommandHandler[] { historyHandler, adsHandler, pendingHandler },
                 _history,
+                telegramOptions,
                 _logger,
                 helpHandler,
                 new PolicyHandler(),
@@ -64,6 +77,19 @@ namespace FindIFBot.UnitTests.Services.Messages
             var sent = _bot.SingleRequest<SendMessageRequest>();
             sent.Text.Should().Contain("Що я вмію");
             sent.ReplyMarkup.Should().BeOfType<ReplyKeyboardMarkup>();
+        }
+
+        [Fact]
+        public async Task Given_PendingCaptionFromAdmin_When_Route_Then_InvokesPendingHandler()
+        {
+            _history.GetPendingAsync(Arg.Any<int>()).Returns([]);
+            _history.HasHistory(AdminId).Returns(false);
+            var message = TelegramBuilder.TextMessage("⏳ Черга модерації", userId: AdminId, chatId: AdminId);
+
+            await _sut.RouteAsync(message, "⏳ черга модерації");
+
+            var sent = _bot.SingleRequest<SendMessageRequest>();
+            sent.Text.Should().Contain("Черга модерації порожня");
         }
     }
 }

@@ -6,6 +6,7 @@ using FindIFBot.UnitTests.TestSupport;
 using Microsoft.Extensions.Options;
 using Telegram.Bot;
 using Telegram.Bot.Requests;
+using Telegram.Bot.Types;
 using Telegram.Bot.Types.ReplyMarkups;
 
 namespace FindIFBot.UnitTests.Services.Admin
@@ -15,13 +16,37 @@ namespace FindIFBot.UnitTests.Services.Admin
         private const long AdminId = 1000;
         private const long UserId = 321;
         private const int MessageId = 99;
+        private const int AdminInfoMessageId = 501;
 
         private readonly ITelegramBotClient _bot = Substitute.For<ITelegramBotClient>();
         private readonly AdminRequestNotifier _sut;
 
         public AdminRequestNotifierTests()
         {
+            _bot.SendRequest(Arg.Any<SendMessageRequest>(), Arg.Any<CancellationToken>())
+                .Returns(ci =>
+                {
+                    var request = (SendMessageRequest)ci[0];
+                    // First message is user info (no reply markup); later ones may have the keyboard.
+                    var id = request.ReplyMarkup is null ? AdminInfoMessageId : AdminInfoMessageId + 1;
+                    return new Message { Id = id };
+                });
+
             _sut = new AdminRequestNotifier(_bot, Options.Create(new TelegramOptions { AdminId = AdminId }));
+        }
+
+        [Fact]
+        public async Task SendToAdminAsync_TextOnly_ReturnsUserInfoMessageId()
+        {
+            var stored = new StoredMessage(UserId, UserId, "promo text", [], null, MessageId);
+            var userInfo = new UserInfo { Id = UserId };
+
+            var result = await _sut.SendToAdminAsync(stored, userInfo);
+
+            result.Should().Be(AdminInfoMessageId);
+            var first = _bot.SentRequests<SendMessageRequest>().First();
+            first.Text.Should().Contain("Інформація про користувача");
+            first.ReplyMarkup.Should().BeNull();
         }
 
         [Fact]
