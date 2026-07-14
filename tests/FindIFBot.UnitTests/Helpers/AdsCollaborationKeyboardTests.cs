@@ -41,5 +41,32 @@ namespace FindIFBot.UnitTests.Helpers
                 adsIndex.Should().BeLessThan(historyIndex);
             }
         }
+
+        [Fact]
+        public void Given_AdminKeyboard_When_Built_Then_IncludesPendingQueueButton()
+        {
+            var keyboard = (ReplyKeyboardMarkup)Keyboards.GetKeyboard(hasHistory: false, isAdmin: true);
+            var texts = keyboard.Keyboard.SelectMany(r => r).Select(b => b.Text).ToList();
+
+            texts.Should().Contain(Keyboards.AdminPendingCaption);
+        }
+
+        [Fact]
+        public void Given_NonAdminKeyboard_When_Built_Then_OmitsPendingQueueButton()
+        {
+            var keyboard = (ReplyKeyboardMarkup)Keyboards.GetKeyboard(hasHistory: true, isAdmin: false);
+            var texts = keyboard.Keyboard.SelectMany(r => r).Select(b => b.Text).ToList();
+
+            texts.Should().NotContain(Keyboards.AdminPendingCaption);
+        }
+
+        [Theory]
+        [InlineData("/pending")]
+        [InlineData("⏳ черга модерації")]
+        [InlineData("черга модерації")]
+        public void Given_PendingTrigger_When_IsPending_Then_ReturnsTrue(string normalized)
+        {
+            BotCommands.IsPending(normalized).Should().BeTrue();
+        }
     }
 }

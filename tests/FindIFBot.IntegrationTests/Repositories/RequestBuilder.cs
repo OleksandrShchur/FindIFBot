@@ -11,7 +11,8 @@ namespace FindIFBot.IntegrationTests.Repositories
             RequestStatus status = RequestStatus.Pending,
             string? channelLink = null,
             DateTime? submittedAt = null,
-            Guid? id = null) =>
+            Guid? id = null,
+            int? adminInfoMessageId = null) =>
             new()
             {
                 Id = id ?? Guid.NewGuid(),
@@ -19,7 +20,8 @@ namespace FindIFBot.IntegrationTests.Repositories
                 UserMessageId = userMessageId,
                 Status = status,
                 ChannelLink = channelLink,
-                SubmittedAt = submittedAt ?? DateTime.UtcNow
+                SubmittedAt = submittedAt ?? DateTime.UtcNow,
+                AdminInfoMessageId = adminInfoMessageId
             };
     }
 }
