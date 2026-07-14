@@ -14,12 +14,15 @@ namespace FindIFBot.Helpers
                 new KeyboardButton[] { "🤝 Реклама та співпраця" }
             };
 
-            if (hasHistory)
+            if (hasHistory && isAdmin)
+            {
+                keyboard.Add(new KeyboardButton[] { "📋 Історія запитів", AdminPendingCaption });
+            }
+            else if (hasHistory)
             {
                 keyboard.Add(new KeyboardButton[] { "📋 Історія запитів" });
             }
-
-            if (isAdmin)
+            else if (isAdmin)
             {
                 keyboard.Add(new KeyboardButton[] { AdminPendingCaption });
             }

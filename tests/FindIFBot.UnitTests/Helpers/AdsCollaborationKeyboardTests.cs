@@ -52,6 +52,16 @@ namespace FindIFBot.UnitTests.Helpers
         }
 
         [Fact]
+        public void Given_AdminKeyboardWithHistory_When_Built_Then_HistoryAndPendingShareOneRow()
+        {
+            var keyboard = (ReplyKeyboardMarkup)Keyboards.GetKeyboard(hasHistory: true, isAdmin: true);
+            var rows = keyboard.Keyboard.Select(r => r.ToArray()).ToArray();
+
+            var sharedRow = rows.Single(r => r.Any(b => b.Text.Contains("Історія")));
+            sharedRow.Select(b => b.Text).Should().Equal("📋 Історія запитів", Keyboards.AdminPendingCaption);
+        }
+
+        [Fact]
         public void Given_NonAdminKeyboard_When_Built_Then_OmitsPendingQueueButton()
         {
             var keyboard = (ReplyKeyboardMarkup)Keyboards.GetKeyboard(hasHistory: true, isAdmin: false);
