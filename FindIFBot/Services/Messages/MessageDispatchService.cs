@@ -1,3 +1,4 @@
+using FindIFBot.Configuration;
 using FindIFBot.Domain;
 using FindIFBot.EF.Entities;
 using FindIFBot.EF.Repositories;
@@ -5,6 +6,7 @@ using FindIFBot.Handlers;
 using FindIFBot.Helpers;
 using FindIFBot.Helpers.Logs;
 using FindIFBot.Services.Ask;
+using Microsoft.Extensions.Options;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
@@ -26,6 +28,7 @@ namespace FindIFBot.Services.Messages
         private readonly IAskConfirmationService _confirmation;
         private readonly IAskFlowService _askFlow;
         private readonly IMessageCommandRouter _commandRouter;
+        private readonly TelegramOptions _telegram;
         private readonly IAppLogger<MessageDispatchService> _logger;
 
         public MessageDispatchService(
@@ -39,6 +42,7 @@ namespace FindIFBot.Services.Messages
             IAskConfirmationService confirmation,
             IAskFlowService askFlow,
             IMessageCommandRouter commandRouter,
+            IOptions<TelegramOptions> telegram,
             IAppLogger<MessageDispatchService> logger)
         {
             _bot = bot;
@@ -51,6 +55,7 @@ namespace FindIFBot.Services.Messages
             _confirmation = confirmation;
             _askFlow = askFlow;
             _commandRouter = commandRouter;
+            _telegram = telegram.Value;
             _logger = logger;
         }
 
@@ -123,13 +128,14 @@ namespace FindIFBot.Services.Messages
             string errorMessage,
             bool hasHistory)
         {
+            var userId = message.From?.Id ?? message.Chat.Id;
             await _logger.LogWarning(Component,
-                $"Validation failed for single message | UserId: {message.From?.Id ?? message.Chat.Id} | MessageId: {message.MessageId}");
+                $"Validation failed for single message | UserId: {userId} | MessageId: {message.MessageId}");
 
             await _bot.SendMessage(
                 message.Chat.Id,
                 errorMessage,
-                replyMarkup: Keyboards.GetKeyboard(hasHistory),
+                replyMarkup: Keyboards.GetKeyboard(hasHistory, userId == _telegram.AdminId),
                 linkPreviewOptions: NoPreview,
                 parseMode: ParseMode.Html
             );

@@ -1,7 +1,9 @@
+using FindIFBot.Configuration;
 using FindIFBot.EF.Repositories;
 using FindIFBot.Handlers;
 using FindIFBot.Helpers;
 using FindIFBot.Helpers.Logs;
+using Microsoft.Extensions.Options;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
@@ -16,7 +18,9 @@ namespace FindIFBot.Services.Messages
         private readonly ITelegramBotClient _bot;
         private readonly IAsyncCommandHandler _historyHandler;
         private readonly IAsyncCommandHandler _adsCollaborationHandler;
+        private readonly IAsyncCommandHandler _adminPendingHandler;
         private readonly IUserRequestHistoryRepository _history;
+        private readonly TelegramOptions _telegram;
         private readonly IAppLogger<MessageCommandRouter> _logger;
         private readonly HelpHandler _helpHandler;
         private readonly PolicyHandler _policyHandler;
@@ -28,6 +32,7 @@ namespace FindIFBot.Services.Messages
             ITelegramBotClient bot,
             IEnumerable<IAsyncCommandHandler> handlers,
             IUserRequestHistoryRepository history,
+            IOptions<TelegramOptions> telegram,
             IAppLogger<MessageCommandRouter> logger,
             HelpHandler helpHandler,
             PolicyHandler policyHandler,
@@ -38,7 +43,9 @@ namespace FindIFBot.Services.Messages
             _bot = bot;
             _historyHandler = handlers.OfType<HistoryHandler>().Single();
             _adsCollaborationHandler = handlers.OfType<AdsCollaborationHandler>().Single();
+            _adminPendingHandler = handlers.OfType<AdminPendingHandler>().Single();
             _history = history;
+            _telegram = telegram.Value;
             _logger = logger;
             _helpHandler = helpHandler;
             _policyHandler = policyHandler;
@@ -51,10 +58,17 @@ namespace FindIFBot.Services.Messages
         {
             var userId = message.From!.Id;
             var hasHistory = await _history.HasHistory(userId);
+            var isAdmin = userId == _telegram.AdminId;
 
             if (BotCommands.IsHistory(normalized))
             {
                 await _historyHandler.HandleAsync(_bot, message);
+                return;
+            }
+
+            if (BotCommands.IsPending(normalized))
+            {
+                await _adminPendingHandler.HandleAsync(_bot, message);
                 return;
             }
 
@@ -76,7 +90,7 @@ namespace FindIFBot.Services.Messages
             await _bot.SendMessage(
                 message.Chat.Id,
                 handler.Handle(),
-                replyMarkup: Keyboards.GetKeyboard(hasHistory),
+                replyMarkup: Keyboards.GetKeyboard(hasHistory, isAdmin),
                 linkPreviewOptions: NoPreview,
                 parseMode: ParseMode.Html
             );

@@ -12,6 +12,11 @@ namespace FindIFBot.EF.Repositories
         Task<bool> HasHistory(long userId);
 
         /// <summary>
+        /// Returns the newest pending requests across all users, capped at <paramref name="limit"/>.
+        /// </summary>
+        Task<List<UserRequest>> GetPendingAsync(int limit);
+
+        /// <summary>
         /// Atomically transitions a request from <paramref name="expectedStatus"/> to
         /// <paramref name="newStatus"/> in a single SQL UPDATE. Returns true only if exactly this
         /// caller performed the transition, providing idempotency for double-delivered callbacks.

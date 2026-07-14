@@ -20,7 +20,7 @@ namespace FindIFBot.Services.Admin
             _logger = logger;
         }
 
-        public async Task AddPendingAsync(long userId, int userMessageId)
+        public async Task AddPendingAsync(long userId, int userMessageId, int adminInfoMessageId)
         {
             var request = new UserRequest
             {
@@ -28,7 +28,8 @@ namespace FindIFBot.Services.Admin
                 UserId = userId,
                 Status = RequestStatus.Pending,
                 SubmittedAt = DateTime.UtcNow,
-                UserMessageId = userMessageId
+                UserMessageId = userMessageId,
+                AdminInfoMessageId = adminInfoMessageId
             };
 
             await _history.Add(request);
