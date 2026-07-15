@@ -27,6 +27,18 @@ namespace FindIFBot.UnitTests.Services.Admin
         }
 
         [Fact]
+        public async Task NotifySubmittedAsync_IncludesRequestIdInUkrainian()
+        {
+            await _sut.NotifySubmittedAsync(UserId, MessageId);
+
+            var sent = _bot.SingleRequest<SendMessageRequest>();
+            sent.ChatId.Identifier.Should().Be(UserId);
+            sent.ParseMode.Should().Be(ParseMode.Html);
+            sent.Text.Should().Contain("Запит відправлено на модерацію");
+            sent.Text.Should().Contain($"🆔 <b>ID запиту:</b> #<code>{MessageId}</code>");
+        }
+
+        [Fact]
         public async Task NotifyAdvertisementAsync_SendsMessageToUserWithDirectChatButton()
         {
             await _sut.NotifyAdvertisementAsync(UserId, MessageId);
