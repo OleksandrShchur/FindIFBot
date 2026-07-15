@@ -39,11 +39,11 @@ namespace FindIFBot.Services.Admin
             );
         }
 
-        public async Task NotifyPublishedAsync(long userId, string channelLink)
+        public async Task NotifyPublishedAsync(long userId, string channelLink, int requestId)
         {
             await _bot.SendMessage(
                 userId,
-                "🚀 <b>Готово!</b> Ваш пост уже в каналі!\n\n" +
+                $"🚀 <b>Готово!</b> Ваш запит <code>#{requestId}</code> опубліковано в каналі!\n\n" +
                 $"<a href=\"{channelLink}\">👉 Переглянути публікацію</a>\n\n",
                 replyMarkup: await KeyboardForAsync(userId),
                 linkPreviewOptions: NoPreview,
@@ -55,11 +55,11 @@ namespace FindIFBot.Services.Admin
         {
             await _bot.SendMessage(
                 userId,
-                "❌ <b>Запит відхилено</b>\n\n" +
+                $"❌ <b>Запит <code>#{messageId}</code> відхилено</b>\n\n" +
                 "На жаль, наші модератори вирішили не публікувати цей допис.\n" +
                 "Це могло статися через невідповідність правилам каналу або інші причини.\n\n" +
                 "Не засмучуйся — спробуй ще раз з іншим матеріалом! 🌱\n" +
-                "Статус усіх твоїх запитів завжди можна подивитись у /history",
+                "Статус усіх твоїх запитів завжди можна подивитись у /history\n\n", 
                 replyParameters: new ReplyParameters { MessageId = messageId },
                 replyMarkup: await KeyboardForAsync(userId),
                 linkPreviewOptions: NoPreview,
@@ -75,7 +75,8 @@ namespace FindIFBot.Services.Admin
                 "На жаль, ми вже публікували дуже подібний запит раніше.\n" +
                 "Щоб не дублювати контент, перевір, будь ласка, пошук у каналі — можливо, відповідь уже там 🌟\n\n" +
                 "Якщо хочеш надіслати щось нове чи по-іншому — пиши, з радістю розглянемо! 🚀\n" +
-                "Статус запитів → /history або кнопка «📋 Історія запитів»",
+                "Статус запитів → /history або кнопка «📋 Історія запитів»\n\n" +
+                $"🆔 <b>ID запиту:</b> #<code>{messageId}</code>",
                 replyParameters: new ReplyParameters { MessageId = messageId },
                 replyMarkup: await KeyboardForAsync(userId),
                 linkPreviewOptions: NoPreview,
@@ -95,7 +96,8 @@ namespace FindIFBot.Services.Admin
                 "а такі публікації ми розміщуємо на умовах реклами та співпраці. 🤝\n\n" +
                 "Це не відмова — ми з радістю розкажемо про вас нашій спільноті Івано-Франківська. " +
                 "Формат, вартість та умови розміщення ми узгоджуємо індивідуально в приватному чаті.\n\n" +
-                "👇 Натисніть кнопку нижче, щоб написати нам у дірект — і ми все організуємо:",
+                "👇 Натисніть кнопку нижче, щоб написати нам у дірект — і ми все організуємо:\n\n" +
+                $"🆔 <b>ID запиту:</b> #<code>{messageId}</code>",
                 replyParameters: new ReplyParameters { MessageId = messageId },
                 replyMarkup: keyboard,
                 linkPreviewOptions: NoPreview,
@@ -113,7 +115,8 @@ namespace FindIFBot.Services.Admin
                 "💬 <b>Модератор має уточнення</b>\n\n" +
                 "Ми переглянули ваш запит і хочемо коротко уточнити кілька деталей перед публікацією.\n\n" +
                 "Напишіть нам у дірект — так швидше все узгодимо 🙌\n\n" +
-                "👇 Натисніть кнопку нижче:",
+                "👇 Натисніть кнопку нижче:\n\n" +
+                $"🆔 <b>ID запиту:</b> #<code>{messageId}</code>",
                 replyParameters: new ReplyParameters { MessageId = messageId },
                 replyMarkup: keyboard,
                 linkPreviewOptions: NoPreview,

@@ -56,7 +56,7 @@ namespace FindIFBot.Services.Admin
 
             var channelLink = await _publisher.PublishAsync(stored);
             await _historyStatus.SetChannelLinkAsync(userId, stored.MessageId, channelLink);
-            await _userNotifier.NotifyPublishedAsync(userId, channelLink);
+            await _userNotifier.NotifyPublishedAsync(userId, channelLink, stored.MessageId);
 
             await _logger.LogInfo(Component,
                 $"Request published | UserId: {userId} | MessageId: {stored.MessageId} | ChannelLink: {channelLink} | Photos: {stored.Photos.Count}");
