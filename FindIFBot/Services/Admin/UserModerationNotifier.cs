@@ -26,12 +26,13 @@ namespace FindIFBot.Services.Admin
             _options = options.Value;
         }
 
-        public async Task NotifySubmittedAsync(long chatId)
+        public async Task NotifySubmittedAsync(long chatId, int requestId)
         {
             await _bot.SendMessage(
                 chatId,
                 "⏳ <b>Запит відправлено на модерацію!</b>\n\n" +
-                "Очікуйте, будь ласка — наші модератори скоро перевірять ваш допис.\n",
+                "Очікуйте, будь ласка — наші модератори скоро перевірять ваш допис.\n\n" +
+                $"🆔 <b>ID запиту:</b> #<code>{requestId}</code>",
                 replyMarkup: Keyboards.GetKeyboard(true, chatId == _options.AdminId),
                 linkPreviewOptions: NoPreview,
                 parseMode: ParseMode.Html
