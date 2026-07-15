@@ -50,7 +50,7 @@ namespace FindIFBot.UnitTests.Services.Admin
             sent.ParseMode.Should().Be(ParseMode.Html);
             sent.Text.Should().Contain("Готово");
             sent.Text.Should().Contain(channelLink);
-            sent.Text.Should().Contain($"🆔 <b>ID запиту:</b> #<code>{MessageId}</code>");
+            sent.Text.Should().Contain($"Ваш запит <code>#{MessageId}</code> опубліковано");
         }
 
         [Fact]
@@ -61,8 +61,7 @@ namespace FindIFBot.UnitTests.Services.Admin
             var sent = _bot.SingleRequest<SendMessageRequest>();
             sent.ReplyParameters!.MessageId.Should().Be(MessageId);
             sent.ParseMode.Should().Be(ParseMode.Html);
-            sent.Text.Should().Contain("Запит відхилено");
-            sent.Text.Should().Contain($"🆔 <b>ID запиту:</b> #<code>{MessageId}</code>");
+            sent.Text.Should().Contain($"Запит <code>#{MessageId}</code> відхилено");
         }
 
         [Fact]
