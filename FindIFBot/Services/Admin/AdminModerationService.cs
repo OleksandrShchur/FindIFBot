@@ -37,7 +37,7 @@ namespace FindIFBot.Services.Admin
             await _logger.LogInfo(Component,
                 $"Submitting ask request to moderation | UserId: {stored.UserId} | MessageId: {stored.MessageId} | Photos: {stored.Photos.Count}");
 
-            await _userNotifier.NotifySubmittedAsync(stored.ChatId);
+            await _userNotifier.NotifySubmittedAsync(stored.ChatId, stored.MessageId);
             var adminInfoMessageId = await _adminNotifier.SendToAdminAsync(stored, userInfo);
             await _historyStatus.AddPendingAsync(stored.UserId, stored.MessageId, adminInfoMessageId);
         }

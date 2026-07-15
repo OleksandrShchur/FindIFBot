@@ -27,7 +27,8 @@ namespace FindIFBot.Services.Admin
         {
             var infoMessage = await _bot.SendMessage(
                 _options.AdminId,
-                $"Інформація про користувача:" +
+                $"🆔 <b>ID запиту:</b> #<code>{stored.MessageId}</code>" +
+                $"\n\nІнформація про користувача:" +
                 $"\n\n<b>ID:</b> {userInfo.Id}" +
                 $"\n<b>UserName:</b> {(string.IsNullOrEmpty(userInfo.UserName) ? "—" : $"@{userInfo.UserName}")}" +
                 $"\n<b>First Name:</b> {Format(userInfo.FirstName)}" +

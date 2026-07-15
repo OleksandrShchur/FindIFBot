@@ -46,6 +46,7 @@ namespace FindIFBot.UnitTests.Services.Admin
             result.Should().Be(AdminInfoMessageId);
             var first = _bot.SentRequests<SendMessageRequest>().First();
             first.Text.Should().Contain("Інформація про користувача");
+            first.Text.Should().Contain($"🆔 <b>ID запиту:</b> #<code>{MessageId}</code>");
             first.ReplyMarkup.Should().BeNull();
         }
 
