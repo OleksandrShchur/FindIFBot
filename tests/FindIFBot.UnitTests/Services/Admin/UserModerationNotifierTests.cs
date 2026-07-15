@@ -39,6 +39,45 @@ namespace FindIFBot.UnitTests.Services.Admin
         }
 
         [Fact]
+        public async Task NotifyPublishedAsync_IncludesRequestId()
+        {
+            const string channelLink = "https://t.me/c/1/2";
+
+            await _sut.NotifyPublishedAsync(UserId, channelLink, MessageId);
+
+            var sent = _bot.SingleRequest<SendMessageRequest>();
+            sent.ChatId.Identifier.Should().Be(UserId);
+            sent.ParseMode.Should().Be(ParseMode.Html);
+            sent.Text.Should().Contain("Готово");
+            sent.Text.Should().Contain(channelLink);
+            sent.Text.Should().Contain($"🆔 <b>ID запиту:</b> #<code>{MessageId}</code>");
+        }
+
+        [Fact]
+        public async Task NotifyRejectedAsync_IncludesRequestIdAndRepliesToOriginal()
+        {
+            await _sut.NotifyRejectedAsync(UserId, MessageId);
+
+            var sent = _bot.SingleRequest<SendMessageRequest>();
+            sent.ReplyParameters!.MessageId.Should().Be(MessageId);
+            sent.ParseMode.Should().Be(ParseMode.Html);
+            sent.Text.Should().Contain("Запит відхилено");
+            sent.Text.Should().Contain($"🆔 <b>ID запиту:</b> #<code>{MessageId}</code>");
+        }
+
+        [Fact]
+        public async Task NotifyDuplicateAsync_IncludesRequestIdAndRepliesToOriginal()
+        {
+            await _sut.NotifyDuplicateAsync(UserId, MessageId);
+
+            var sent = _bot.SingleRequest<SendMessageRequest>();
+            sent.ReplyParameters!.MessageId.Should().Be(MessageId);
+            sent.ParseMode.Should().Be(ParseMode.Html);
+            sent.Text.Should().Contain("Схожий допис");
+            sent.Text.Should().Contain($"🆔 <b>ID запиту:</b> #<code>{MessageId}</code>");
+        }
+
+        [Fact]
         public async Task NotifyAdvertisementAsync_SendsMessageToUserWithDirectChatButton()
         {
             await _sut.NotifyAdvertisementAsync(UserId, MessageId);
@@ -60,6 +99,23 @@ namespace FindIFBot.UnitTests.Services.Admin
             sent.ReplyParameters!.MessageId.Should().Be(MessageId);
             sent.ParseMode.Should().Be(ParseMode.Html);
             sent.Text.Should().Contain("реклам");
+            sent.Text.Should().Contain($"🆔 <b>ID запиту:</b> #<code>{MessageId}</code>");
+        }
+
+        [Fact]
+        public async Task NotifyNeedsAttentionAsync_IncludesRequestIdAndDirectChatButton()
+        {
+            await _sut.NotifyNeedsAttentionAsync(UserId, MessageId);
+
+            var sent = _bot.SingleRequest<SendMessageRequest>();
+            sent.ReplyParameters!.MessageId.Should().Be(MessageId);
+            sent.ParseMode.Should().Be(ParseMode.Html);
+            sent.Text.Should().Contain("уточнення");
+            sent.Text.Should().Contain($"🆔 <b>ID запиту:</b> #<code>{MessageId}</code>");
+
+            var keyboard = sent.ReplyMarkup.Should().BeOfType<InlineKeyboardMarkup>().Subject;
+            var button = keyboard.InlineKeyboard.SelectMany(row => row).Single();
+            button.Url.Should().Be(DirectLink);
         }
     }
 }
