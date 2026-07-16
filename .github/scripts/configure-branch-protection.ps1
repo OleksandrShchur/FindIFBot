@@ -41,10 +41,10 @@ $payload = @{
     required_conversation_resolution = $false
 } | ConvertTo-Json -Depth 5 -Compress
 
-gh api `
+$payload | gh api `
     --method PUT `
     -H "Accept: application/vnd.github+json" `
     "/repos/$Repository/branches/$Branch/protection" `
-    --input - <<< $payload
+    --input -
 
 Write-Host "Branch protection enabled on '$Branch' requiring status check '$RequiredCheck'."
