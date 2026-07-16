@@ -31,6 +31,7 @@ namespace FindIFBot.IntegrationTests.Http
                 config.AddInMemoryCollection(new Dictionary<string, string?>
                 {
                     ["Telegram:BotToken"] = "123456:test-token",
+                    ["Telegram:AdminId"] = "123456789",
                     ["Maintenance:SecretKey"] = MaintenanceKey,
                     // A syntactically valid connection string; the DB is never hit because the
                     // dispatcher/maintenance seams are substituted in these HTTP tests.
