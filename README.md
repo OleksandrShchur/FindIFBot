@@ -1,5 +1,7 @@
 # FindIFBot
 
+[![build-and-test](https://github.com/OleksandrShchur/FindIFBot/actions/workflows/ci.yml/badge.svg)](https://github.com/OleksandrShchur/FindIFBot/actions/workflows/ci.yml)
+
 Telegram bot for the **«Франківськ Питає»** community channel. Users submit publication requests through the bot; moderators review and approve them before they are posted to the channel.
 
 Built on **ASP.NET Core 9** with a webhook-based update pipeline, **Entity Framework Core** persistence, and an admin moderation workflow.
@@ -9,7 +11,9 @@ Built on **ASP.NET Core 9** with a webhook-based update pipeline, **Entity Frame
 - **Ask flow** — users send text and up to 10 photos; submissions are validated, confirmed, and forwarded to admins for review
 - **Channel subscription check** — users must subscribe to the output channel before starting the ask flow
 - **Admin moderation** — inline callbacks to approve, reject, or mark submissions as duplicates; approved posts are published to the channel
+- **Moderation queue** — admins can list pending submissions with links back to the original moderation thread (`/pending`)
 - **Request history** — users can view their past submissions grouped by status (`/history`)
+- **Ads & collaboration** — dedicated policy and direct-chat link for advertising inquiries (`/ads`)
 - **Media groups** — photo albums are buffered and processed as a single submission
 - **Durable pending submissions** — in-progress ask content survives app restarts (stored in SQL Server)
 - **Operational tooling** — Serilog file logging, Telegram log forwarding, and maintenance endpoints for daily log export and statistics
@@ -21,35 +25,41 @@ Built on **ASP.NET Core 9** with a webhook-based update pipeline, **Entity Frame
 | `/start` | Welcome message and reply keyboard |
 | `/ask` | Start a publication request |
 | `/history` | View submission history |
+| `/ads` | Advertising and collaboration policy with direct-chat link |
 | `/help` | Bot help |
 | `/policy` | Community rules |
 | `/support` | Support the project |
 | `/channel` | Link to the channel |
+| `/pending` | Admin only — list submissions awaiting moderation |
 
 Commands are also available via Ukrainian reply-keyboard buttons.
 
 ## Tech stack
 
-- .NET 9 / ASP.NET Core Web API
-- [Telegram.Bot](https://github.com/TelegramBots/Telegram.Bot) 22.x
-- Entity Framework Core + SQL Server
-- Serilog (rolling daily file logs)
-- Built-in ASP.NET Core rate limiting
-- xUnit, NSubstitute, FluentAssertions (tests)
+- .NET 9 SDK (pinned in `global.json`, currently **9.0.316**) / ASP.NET Core Web API
+- [Telegram.Bot](https://github.com/TelegramBots/Telegram.Bot) **22.8.1**
+- Entity Framework Core **9.0.12** + SQL Server
+- Serilog (rolling daily file logs, 10-day retention)
+- Built-in ASP.NET Core rate limiting (50 requests / 10 s globally; 5 / min on maintenance endpoints)
+- xUnit, NSubstitute, FluentAssertions, `Microsoft.AspNetCore.Mvc.Testing` (tests)
 
 ## Project structure
 
 ```
 FindIFBot/
+├── .github/
+│   ├── workflows/ci.yml    # build-and-test on push/PR to master
+│   └── scripts/            # branch protection helper (gh CLI)
 ├── FindIFBot/              # Main web application
 │   ├── Controllers/        # Webhook, health check, maintenance
-│   ├── Handlers/           # Command handlers (/start, /history, …)
+│   ├── Handlers/           # Command handlers (/start, /history, /ads, …)
 │   ├── Services/           # Ask flow, admin workflow, message dispatch
 │   ├── EF/                 # DbContext, entities, repositories, migrations
 │   └── Configuration/      # Typed options (Telegram, Submission, History, …)
 ├── tests/
 │   ├── FindIFBot.UnitTests/
 │   └── FindIFBot.IntegrationTests/
+├── global.json             # Pinned .NET SDK version
 └── FindIFBot.sln
 ```
 
@@ -72,6 +82,7 @@ Copy `FindIFBot/appsettings.json` values into `FindIFBot/appsettings.Development
 | `AdminId` | Telegram user ID of the admin moderator |
 | `UserOutputChannel` | Channel ID or `@username` where approved posts are published |
 | `LinkToChannel` | Public link shown to users |
+| `DirectChatLink` | Direct-message link for ads/collaboration and moderation follow-ups |
 | `ChatInviteLink` | Invite link used during subscription checks |
 | `BotUsername` | Bot username (without `@`) |
 | `LogsOutputChannel` | Channel for operational logs |
@@ -114,7 +125,7 @@ Apply EF Core migrations before first run:
 dotnet ef database update --project FindIFBot/FindIFBot.csproj
 ```
 
-Migrations live in `FindIFBot/Migrations/`. The schema includes user sessions, request history, and pending submissions.
+Migrations live in `FindIFBot/Migrations/`. The schema includes user sessions, request history, pending submissions, and admin moderation message references (`AdminInfoMessageId`).
 
 ## Build and run
 
@@ -169,13 +180,29 @@ The bot is reachable by Telegram through the ngrok tunnel.
 
 Maintenance endpoints require the `X-Maintenance-Key` header matching `Maintenance:SecretKey` and are rate-limited to 5 requests per minute per IP.
 
+## CI
+
+GitHub Actions runs **build-and-test** on every push and pull request to `master`:
+
+1. Restore `FindIFBot.sln` using the SDK from `global.json`
+2. Release build
+3. Run all unit and integration tests
+
+Workflow: [`.github/workflows/ci.yml`](.github/workflows/ci.yml)
+
+To require the check on `master` (one-time, after CI has run at least once):
+
+```powershell
+pwsh .github/scripts/configure-branch-protection.ps1
+```
+
 ## Testing
 
 ```bash
 dotnet test FindIFBot.sln
 ```
 
-- **Unit tests** — controllers, dispatchers, ask flow, admin publishing, templates
+- **Unit tests** — controllers, dispatchers, ask flow, admin publishing, ads/collaboration, admin pending queue, keyboards
 - **Integration tests** — HTTP endpoints and EF repositories (SQLite in-memory)
 
 ## Architecture overview
