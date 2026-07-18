@@ -44,6 +44,23 @@ namespace FindIFBot.UnitTests.Services.Admin
         }
 
         [Fact]
+        public async Task PublishAsync_TextWithTextLink_PreservesAnchorInBody()
+        {
+            var entities = new[]
+            {
+                new StoredMessageEntity("TextLink", 5, 4, Url: "https://example.com/x")
+            };
+            var stored = new StoredMessage(1, 2, "Test post", [], null, 100, entities);
+
+            await _sut.PublishAsync(stored);
+
+            var sent = _bot.SingleRequest<SendMessageRequest>();
+            sent.ParseMode.Should().Be(Telegram.Bot.Types.Enums.ParseMode.Html);
+            sent.Text.Should().StartWith("Test <a href=\"https://example.com/x\">post</a>");
+            sent.Text.Should().Contain("tg://resolve?domain=ask_frankivsk");
+        }
+
+        [Fact]
         public async Task PublishAsync_SinglePhoto_UsesDeepLinksInCaption()
         {
             var stored = new StoredMessage(1, 2, "Photo post", ["photo-file-id"], null, 100);
