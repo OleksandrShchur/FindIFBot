@@ -1,4 +1,5 @@
 using FindIFBot.Persistence;
+using FindIFBot.Utils;
 using Telegram.Bot.Types;
 
 namespace FindIFBot.Services.Messages
@@ -14,13 +15,18 @@ namespace FindIFBot.Services.Messages
 
         public async Task<StoredMessage> StoreSingleAsync(Message message, string? text, IReadOnlyList<string> photos)
         {
+            var entities = message.Text != null
+                ? MessageEntityHtml.FromTelegram(message.Entities)
+                : MessageEntityHtml.FromTelegram(message.CaptionEntities);
+
             var stored = new StoredMessage(
                 message.Chat.Id,
                 message.From?.Id ?? message.Chat.Id,
                 text,
                 photos,
                 message.MediaGroupId,
-                message.MessageId
+                message.MessageId,
+                entities
             );
 
             await _messages.StoreAsync(stored);
@@ -36,7 +42,8 @@ namespace FindIFBot.Services.Messages
                 captionMessage.Caption,
                 photos,
                 captionMessage.MediaGroupId,
-                captionMessage.MessageId
+                captionMessage.MessageId,
+                MessageEntityHtml.FromTelegram(captionMessage.CaptionEntities)
             );
 
             await _messages.StoreAsync(stored);
