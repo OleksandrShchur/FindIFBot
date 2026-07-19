@@ -7,5 +7,6 @@ namespace FindIFBot.Services.Ask
     {
         Task StartAsync(long chatId, long userId, UserSession session);
         Task HandleCallbackAsync(CallbackQuery callback);
+        Task ReturnToMainMenuAsync(CallbackQuery callback);
     }
 }

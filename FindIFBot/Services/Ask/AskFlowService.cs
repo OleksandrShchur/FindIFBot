@@ -3,6 +3,7 @@ using FindIFBot.Domain;
 using FindIFBot.EF.Entities;
 using FindIFBot.EF.Repositories;
 using FindIFBot.Handlers;
+using FindIFBot.Helpers;
 using FindIFBot.Helpers.Logs;
 using Microsoft.Extensions.Options;
 using Telegram.Bot;
@@ -18,6 +19,7 @@ namespace FindIFBot.Services.Ask
 
         private readonly ITelegramBotClient _bot;
         private readonly IUserSessionRepository _sessions;
+        private readonly IUserRequestHistoryRepository _history;
         private readonly ISubscriptionService _subscriptionService;
         private readonly IAppLogger<AskFlowService> _logger;
         private readonly TelegramOptions _options;
@@ -27,6 +29,7 @@ namespace FindIFBot.Services.Ask
         public AskFlowService(
             ITelegramBotClient bot,
             IUserSessionRepository sessions,
+            IUserRequestHistoryRepository history,
             ISubscriptionService subscriptionService,
             IAppLogger<AskFlowService> logger,
             IOptions<TelegramOptions> options,
@@ -34,6 +37,7 @@ namespace FindIFBot.Services.Ask
         {
             _bot = bot;
             _sessions = sessions;
+            _history = history;
             _subscriptionService = subscriptionService;
             _logger = logger;
             _options = options.Value;
@@ -68,10 +72,55 @@ namespace FindIFBot.Services.Ask
             await _sessions.SaveAsync(session);
             await _logger.LogInfo(Component, $"User started ask flow | UserId: {userId}");
 
-            await _bot.SendMessage(
+            var prompt = await _bot.SendMessage(
                 chatId,
                 _askHandler.Handle(),
                 replyMarkup: new ReplyKeyboardRemove(),
+                linkPreviewOptions: NoPreview,
+                parseMode: ParseMode.Html
+            );
+
+            await _bot.EditMessageReplyMarkup(
+                chatId,
+                prompt.Id,
+                replyMarkup: new InlineKeyboardMarkup(
+                    InlineKeyboardButton.WithCallbackData("🏠 Головне меню", BotCommands.MainMenuCallback)));
+        }
+
+        public async Task ReturnToMainMenuAsync(CallbackQuery callback)
+        {
+            await _bot.AnswerCallbackQuery(callback.Id);
+
+            var userId = callback.From.Id;
+            var chatId = callback.Message?.Chat.Id ?? userId;
+            var session = await _sessions.GetAsync(userId);
+
+            if (session.State is UserState.WaitingForAskQuery or UserState.ConfirmAskContent)
+            {
+                session.State = UserState.Idle;
+                await _sessions.SaveAsync(session);
+                await _logger.LogInfo(Component, $"User returned to main menu from ask flow | UserId: {userId}");
+            }
+
+            if (callback.Message is { } promptMessage)
+            {
+                try
+                {
+                    await _bot.EditMessageReplyMarkup(chatId, promptMessage.Id, replyMarkup: null);
+                }
+                catch
+                {
+                    // Prompt may already have no markup or be too old to edit.
+                }
+            }
+
+            var hasHistory = await _history.HasHistory(userId);
+            var isAdmin = userId == _options.AdminId;
+
+            await _bot.SendMessage(
+                chatId,
+                "🛠 <b>Оберіть опцію, якою хочете скористатися:</b>",
+                replyMarkup: Keyboards.GetKeyboard(hasHistory, isAdmin),
                 linkPreviewOptions: NoPreview,
                 parseMode: ParseMode.Html
             );

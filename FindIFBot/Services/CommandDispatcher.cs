@@ -32,6 +32,12 @@ namespace FindIFBot.Services
                     return;
                 }
 
+                if (IsMainMenuCallback(update.CallbackQuery))
+                {
+                    await _askFlow.ReturnToMainMenuAsync(update.CallbackQuery);
+                    return;
+                }
+
                 await _adminWorkflow.HandleCallbackAsync(update.CallbackQuery);
                 return;
             }
@@ -44,5 +50,8 @@ namespace FindIFBot.Services
 
         private static bool IsAskCallback(CallbackQuery callback) =>
             BotCommands.IsAsk(BotCommands.Normalize(callback.Data));
+
+        private static bool IsMainMenuCallback(CallbackQuery callback) =>
+            BotCommands.IsMainMenu(BotCommands.Normalize(callback.Data));
     }
 }
