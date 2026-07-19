@@ -32,6 +32,20 @@ namespace FindIFBot.UnitTests.Services
         }
 
         [Fact]
+        public async Task Given_MainMenuCallbackQuery_When_Dispatch_Then_RoutesToAskFlowReturnToMainMenu()
+        {
+            var callback = TelegramBuilder.CallbackQuery("main_menu");
+            var update = TelegramBuilder.CallbackUpdate(callback);
+
+            await _sut.DispatchAsync(update);
+
+            await _askFlow.Received(1).ReturnToMainMenuAsync(callback);
+            await _askFlow.DidNotReceive().HandleCallbackAsync(Arg.Any<Telegram.Bot.Types.CallbackQuery>());
+            await _adminWorkflow.DidNotReceive().HandleCallbackAsync(Arg.Any<Telegram.Bot.Types.CallbackQuery>());
+            await _messageDispatch.DidNotReceive().HandleAsync(Arg.Any<Telegram.Bot.Types.Message>());
+        }
+
+        [Fact]
         public async Task Given_NonAskCallbackQuery_When_Dispatch_Then_RoutesToAdminWorkflow()
         {
             var callback = TelegramBuilder.CallbackQuery("approve:42");
@@ -41,6 +55,7 @@ namespace FindIFBot.UnitTests.Services
 
             await _adminWorkflow.Received(1).HandleCallbackAsync(callback);
             await _askFlow.DidNotReceive().HandleCallbackAsync(Arg.Any<Telegram.Bot.Types.CallbackQuery>());
+            await _askFlow.DidNotReceive().ReturnToMainMenuAsync(Arg.Any<Telegram.Bot.Types.CallbackQuery>());
         }
 
         [Fact]
