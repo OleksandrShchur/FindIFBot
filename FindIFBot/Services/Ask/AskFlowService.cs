@@ -72,19 +72,17 @@ namespace FindIFBot.Services.Ask
             await _sessions.SaveAsync(session);
             await _logger.LogInfo(Component, $"User started ask flow | UserId: {userId}");
 
-            var prompt = await _bot.SendMessage(
+            // Send prompt + inline button in one call. Do not send ReplyKeyboardRemove on this
+            // message and then edit it — Telegram returns "message can't be edited".
+            // Reply keyboard may remain visible; MessageDispatchService treats menu taps as exit.
+            await _bot.SendMessage(
                 chatId,
                 _askHandler.Handle(),
-                replyMarkup: new ReplyKeyboardRemove(),
+                replyMarkup: new InlineKeyboardMarkup(
+                    InlineKeyboardButton.WithCallbackData("🏠 Головне меню", BotCommands.MainMenuCallback)),
                 linkPreviewOptions: NoPreview,
                 parseMode: ParseMode.Html
             );
-
-            await _bot.EditMessageReplyMarkup(
-                chatId,
-                prompt.Id,
-                replyMarkup: new InlineKeyboardMarkup(
-                    InlineKeyboardButton.WithCallbackData("🏠 Головне меню", BotCommands.MainMenuCallback)));
         }
 
         public async Task ReturnToMainMenuAsync(CallbackQuery callback)

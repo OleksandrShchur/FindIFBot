@@ -83,6 +83,16 @@ namespace FindIFBot.Services.Messages
                 ? new List<string> { message.Photo.Last().FileId }
                 : new List<string>();
 
+            var normalized = BotCommands.Normalize(text);
+
+            // Ask prompt keeps an inline «Головне меню» button; the reply keyboard may still be
+            // visible. Menu taps must exit the wait state, not become ask content.
+            if (session.State == UserState.WaitingForAskQuery && BotCommands.IsMenuCommand(normalized))
+            {
+                session.State = UserState.Idle;
+                await _sessions.SaveAsync(session);
+            }
+
             if (session.State == UserState.WaitingForAskQuery)
             {
                 var validation = _validator.ValidateSingleMessage(message, text, photos.Count);
@@ -97,8 +107,6 @@ namespace FindIFBot.Services.Messages
 
             await _logger.LogInfo(Component,
                 $"Stored single message | UserId: {userId} | MessageId: {stored.MessageId} | Photos: {photos.Count} | TextLength: {(text?.Length ?? 0)}");
-
-            var normalized = (text ?? string.Empty).Trim().ToLowerInvariant();
 
             if (BotCommands.IsStart(normalized))
             {
