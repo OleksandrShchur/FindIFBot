@@ -99,7 +99,7 @@ namespace FindIFBot.UnitTests.Services.Ask
             sent.ChatId.Identifier.Should().Be(ChatId);
             var keyboard = sent.ReplyMarkup.Should().BeOfType<InlineKeyboardMarkup>().Subject;
             var button = keyboard.InlineKeyboard.SelectMany(r => r).Should().ContainSingle().Subject;
-            button.Text.Should().Be("🏠 Головне меню");
+            button.Text.Should().Be("🏠 Назад у Головне меню");
             button.CallbackData.Should().Be(BotCommands.MainMenuCallback);
 
             _bot.SentRequests<EditMessageReplyMarkupRequest>().Should().BeEmpty();

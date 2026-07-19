@@ -79,7 +79,7 @@ namespace FindIFBot.Services.Ask
                 chatId,
                 _askHandler.Handle(),
                 replyMarkup: new InlineKeyboardMarkup(
-                    InlineKeyboardButton.WithCallbackData("🏠 Головне меню", BotCommands.MainMenuCallback)),
+                    InlineKeyboardButton.WithCallbackData("🏠 Назад у Головне меню", BotCommands.MainMenuCallback)),
                 linkPreviewOptions: NoPreview,
                 parseMode: ParseMode.Html
             );
