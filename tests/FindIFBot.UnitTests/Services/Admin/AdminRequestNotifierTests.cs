@@ -87,6 +87,25 @@ namespace FindIFBot.UnitTests.Services.Admin
         }
 
         [Fact]
+        public async Task SendToAdminAsync_TextOnly_SendsHtmlTextLinks()
+        {
+            var entities = new[]
+            {
+                new StoredMessageEntity("TextLink", 0, 4, Url: "https://example.com/hidden")
+            };
+            var stored = new StoredMessage(UserId, UserId, "post about town", [], null, MessageId, entities);
+            var userInfo = new UserInfo { Id = UserId };
+
+            await _sut.SendToAdminAsync(stored, userInfo);
+
+            var moderation = _bot.SentRequests<SendMessageRequest>()
+                .Single(r => r.ReplyMarkup is InlineKeyboardMarkup);
+            moderation.ParseMode.Should().Be(Telegram.Bot.Types.Enums.ParseMode.Html);
+            moderation.Text.Should().Contain("<a href=\"https://example.com/hidden\">post</a>");
+            moderation.Text.Should().Contain(" about town");
+        }
+
+        [Fact]
         public async Task SendToAdminAsync_TextOnly_KeepsApproveRejectDuplicateButtons()
         {
             var stored = new StoredMessage(UserId, UserId, "promo text", [], null, MessageId);

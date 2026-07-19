@@ -1,6 +1,7 @@
 using FindIFBot.Configuration;
 using FindIFBot.Helpers;
 using FindIFBot.Persistence;
+using FindIFBot.Utils;
 using Microsoft.Extensions.Options;
 using Telegram.Bot;
 using Telegram.Bot.Types;
@@ -24,7 +25,8 @@ namespace FindIFBot.Services.Admin
 
         public async Task<string> PublishAsync(StoredMessage stored)
         {
-            var postText = PostTemplate.Build(stored.Text, _options);
+            var bodyHtml = MessageEntityHtml.Format(stored.Text, stored.TextEntities);
+            var postText = PostTemplate.Build(bodyHtml, _options);
             var postId = 0;
 
             if (stored.Photos.Count == 1)

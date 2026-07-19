@@ -130,7 +130,7 @@ namespace FindIFBot.Services.Messages
                 return;
             }
 
-            var normalized = (stored.Text ?? string.Empty).ToLowerInvariant();
+            var normalized = (stored.Text ?? string.Empty).Trim().ToLowerInvariant();
             await _commandRouter.RouteAsync(captionMessage, normalized);
         }
 

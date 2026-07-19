@@ -1,6 +1,7 @@
 using FindIFBot.Configuration;
 using FindIFBot.Domain;
 using FindIFBot.Persistence;
+using FindIFBot.Utils;
 using Microsoft.Extensions.Options;
 using Telegram.Bot;
 using Telegram.Bot.Types;
@@ -59,30 +60,45 @@ namespace FindIFBot.Services.Admin
 
             if (stored.Photos.Count > 0)
             {
+                var captionHtml = FormatBodyOrNull(stored);
                 var media = stored.Photos
-                    .Select((id, i) => new InputMediaPhoto(id) { Caption = i == 0 ? stored.Text : null })
+                    .Select((id, i) => new InputMediaPhoto(id)
+                    {
+                        Caption = i == 0 ? captionHtml : null,
+                        ParseMode = i == 0 && captionHtml != null ? ParseMode.Html : default
+                    })
                     .ToArray();
 
                 await _bot.SendMediaGroup(_options.AdminId, media);
                 await _bot.SendMessage(
-                    _options.AdminId, 
-                    "🛠 Дії модерації:", 
+                    _options.AdminId,
+                    "🛠 Дії модерації:",
                     linkPreviewOptions: NoPreview,
                     replyMarkup: keyboard
                 );
             }
             else
             {
+                var body = string.IsNullOrWhiteSpace(stored.Text)
+                    ? "📝 (тільки текст без вмісту)"
+                    : MessageEntityHtml.Format(stored.Text, stored.TextEntities);
+
                 await _bot.SendMessage(
-                    _options.AdminId, 
-                    stored.Text ?? "📝 (тільки текст без вмісту)", 
+                    _options.AdminId,
+                    body,
                     linkPreviewOptions: NoPreview,
+                    parseMode: ParseMode.Html,
                     replyMarkup: keyboard
                 );
             }
 
             return infoMessage.MessageId;
         }
+
+        private static string? FormatBodyOrNull(StoredMessage stored) =>
+            string.IsNullOrWhiteSpace(stored.Text)
+                ? null
+                : MessageEntityHtml.Format(stored.Text, stored.TextEntities);
 
         private static string Format(string value) =>
             string.IsNullOrEmpty(value) ? "—" : value;

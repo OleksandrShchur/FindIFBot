@@ -29,6 +29,9 @@ namespace FindIFBot.Persistence
                 .FirstOrDefaultAsync(p => p.MessageId == message.MessageId, cancellationToken);
 
             var photosJson = JsonSerializer.Serialize(message.Photos);
+            var entitiesJson = message.TextEntities.Count > 0
+                ? JsonSerializer.Serialize(message.TextEntities)
+                : null;
 
             if (entity is null)
             {
@@ -39,6 +42,7 @@ namespace FindIFBot.Persistence
                     UserId = message.UserId,
                     Text = message.Text,
                     PhotosJson = photosJson,
+                    EntitiesJson = entitiesJson,
                     MediaGroupId = message.MediaGroupId,
                     CreatedAtUtc = DateTime.UtcNow
                 });
@@ -47,6 +51,7 @@ namespace FindIFBot.Persistence
             {
                 entity.Text = message.Text;
                 entity.PhotosJson = photosJson;
+                entity.EntitiesJson = entitiesJson;
             }
 
             await _db.SaveChangesAsync(cancellationToken);
@@ -70,6 +75,9 @@ namespace FindIFBot.Persistence
             }
 
             var photos = JsonSerializer.Deserialize<List<string>>(entity.PhotosJson) ?? new List<string>();
+            var entities = string.IsNullOrEmpty(entity.EntitiesJson)
+                ? null
+                : JsonSerializer.Deserialize<List<StoredMessageEntity>>(entity.EntitiesJson);
 
             return new StoredMessage(
                 entity.ChatId,
@@ -77,7 +85,8 @@ namespace FindIFBot.Persistence
                 entity.Text,
                 photos,
                 entity.MediaGroupId,
-                entity.MessageId);
+                entity.MessageId,
+                entities);
         }
 
         public async Task RemoveAsync(int messageId, CancellationToken cancellationToken = default)

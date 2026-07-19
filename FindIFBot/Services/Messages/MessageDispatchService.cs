@@ -77,7 +77,8 @@ namespace FindIFBot.Services.Messages
         {
             var userId = message.From?.Id ?? message.Chat.Id;
             var hasHistory = await _history.HasHistory(userId);
-            var text = message.Text?.Trim() ?? message.Caption?.Trim();
+            // Keep original Telegram text so entity offsets stay valid for text_link / formatting.
+            var text = message.Text ?? message.Caption;
             var photos = message.Photo != null
                 ? new List<string> { message.Photo.Last().FileId }
                 : new List<string>();
@@ -97,7 +98,7 @@ namespace FindIFBot.Services.Messages
             await _logger.LogInfo(Component,
                 $"Stored single message | UserId: {userId} | MessageId: {stored.MessageId} | Photos: {photos.Count} | TextLength: {(text?.Length ?? 0)}");
 
-            var normalized = (text ?? string.Empty).ToLowerInvariant();
+            var normalized = (text ?? string.Empty).Trim().ToLowerInvariant();
 
             if (BotCommands.IsStart(normalized))
             {

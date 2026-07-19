@@ -3,6 +3,7 @@ using FindIFBot.EF.Entities;
 using FindIFBot.EF.Repositories;
 using FindIFBot.Helpers.Logs;
 using FindIFBot.Persistence;
+using FindIFBot.Utils;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
@@ -46,10 +47,12 @@ namespace FindIFBot.Services.Messages
 
             if (stored.Photos.Count > 0)
             {
+                var captionHtml = FormatBody(stored);
                 var media = stored.Photos
                     .Select((id, i) => new InputMediaPhoto(id)
                     {
-                        Caption = i == 0 ? stored.Text : null
+                        Caption = i == 0 ? captionHtml : null,
+                        ParseMode = i == 0 ? ParseMode.Html : default
                     })
                     .ToArray();
 
@@ -59,7 +62,7 @@ namespace FindIFBot.Services.Messages
             {
                 var previewText = string.IsNullOrWhiteSpace(stored.Text)
                     ? "📝 (тільки текст без вмісту)"
-                    : stored.Text;
+                    : FormatBody(stored);
 
                 await _bot.SendMessage(
                     message.Chat.Id,
@@ -92,5 +95,8 @@ namespace FindIFBot.Services.Messages
             session.State = UserState.ConfirmAskContent;
             await _sessions.SaveAsync(session);
         }
+
+        private static string FormatBody(StoredMessage stored) =>
+            MessageEntityHtml.Format(stored.Text, stored.TextEntities);
     }
 }

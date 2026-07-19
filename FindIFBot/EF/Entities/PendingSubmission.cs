@@ -17,6 +17,9 @@ namespace FindIFBot.EF.Entities
         /// <summary>JSON-serialized list of Telegram photo FileIds.</summary>
         public string PhotosJson { get; set; } = "[]";
 
+        /// <summary>JSON-serialized list of message/caption entities (text links, formatting).</summary>
+        public string? EntitiesJson { get; set; }
+
         public string? MediaGroupId { get; init; }
         public DateTime CreatedAtUtc { get; init; }
     }
