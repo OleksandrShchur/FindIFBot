@@ -21,6 +21,7 @@ namespace FindIFBot.Helpers
         public const string Channel = "/channel";
         public const string History = "/history";
         public const string Pending = "/pending";
+        public const string MainMenuCallback = "main_menu";
 
         // Trigger sets are stored in normalized form so they can be compared directly
         // against the output of Normalize(). Keep the button captions in sync with Keyboards.cs.
@@ -51,5 +52,21 @@ namespace FindIFBot.Helpers
         public static bool IsHistory(string normalized) => HistoryTriggers.Contains(normalized);
         public static bool IsAdsCollaboration(string normalized) => AdsCollabTriggers.Contains(normalized);
         public static bool IsPending(string normalized) => PendingTriggers.Contains(normalized);
+        public static bool IsMainMenu(string normalized) => normalized == MainMenuCallback;
+
+        /// <summary>
+        /// True when the text is a known menu / slash command (not free-form ask content).
+        /// Used to leave the ask wait state if the reply keyboard is still visible.
+        /// </summary>
+        public static bool IsMenuCommand(string normalized) =>
+            IsStart(normalized)
+            || IsAsk(normalized)
+            || IsHelp(normalized)
+            || IsPolicy(normalized)
+            || IsSupport(normalized)
+            || IsChannel(normalized)
+            || IsHistory(normalized)
+            || IsAdsCollaboration(normalized)
+            || IsPending(normalized);
     }
 }
