@@ -97,15 +97,13 @@ namespace FindIFBot.UnitTests.Services.Ask
 
             var sent = _bot.SingleRequest<SendMessageRequest>();
             sent.ChatId.Identifier.Should().Be(ChatId);
-            sent.ReplyMarkup.Should().BeOfType<ReplyKeyboardRemove>();
-
-            var edit = _bot.SingleRequest<EditMessageReplyMarkupRequest>();
-            edit.ChatId.Identifier.Should().Be(ChatId);
-            edit.MessageId.Should().Be(PromptMessageId);
-            var keyboard = edit.ReplyMarkup.Should().BeOfType<InlineKeyboardMarkup>().Subject;
+            var keyboard = sent.ReplyMarkup.Should().BeOfType<InlineKeyboardMarkup>().Subject;
             var button = keyboard.InlineKeyboard.SelectMany(r => r).Should().ContainSingle().Subject;
             button.Text.Should().Be("🏠 Головне меню");
             button.CallbackData.Should().Be(BotCommands.MainMenuCallback);
+
+            _bot.SentRequests<EditMessageReplyMarkupRequest>().Should().BeEmpty();
+            _bot.SentRequests<DeleteMessageRequest>().Should().BeEmpty();
 
             await _logger.Received().LogInfo("AskFlow", Arg.Is<string>(m => m.Contains("started ask flow")));
         }

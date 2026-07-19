@@ -130,6 +130,20 @@ namespace FindIFBot.UnitTests.Services.Messages
         }
 
         [Fact]
+        public async Task Given_WaitingForAskQuery_When_MenuButtonTapped_Then_ExitsAskAndRoutesCommand()
+        {
+            GivenSession(UserState.WaitingForAskQuery);
+            var message = TelegramBuilder.TextMessage("ℹ️ Довідка", userId: UserId);
+
+            await _sut.HandleAsync(message);
+
+            await _sessions.Received().SaveAsync(Arg.Is<UserSession>(s => s.State == UserState.Idle));
+            _validator.DidNotReceiveWithAnyArgs().ValidateSingleMessage(default!, default, default);
+            await _confirmation.DidNotReceiveWithAnyArgs().SendConfirmationAsync(default!, default!);
+            await _commandRouter.Received(1).RouteAsync(message, "ℹ️ довідка");
+        }
+
+        [Fact]
         public async Task Given_AskCommand_When_Handle_Then_InvokesAskFlowStart()
         {
             GivenSession(UserState.Idle);
