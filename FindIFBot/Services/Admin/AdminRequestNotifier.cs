@@ -105,16 +105,26 @@ namespace FindIFBot.Services.Admin
             return infoMessage.MessageId;
         }
 
-        private static string BuildUserInfoHtml(StoredMessage stored, UserInfo userInfo) =>
-            $"🆔 <b>ID запиту:</b> #<code>{stored.MessageId}</code>" +
-            $"\n\nІнформація про користувача:" +
-            $"\n\n<b>ID:</b> {userInfo.Id}" +
-            $"\n<b>UserName:</b> {(string.IsNullOrEmpty(userInfo.UserName) ? "—" : $"@{userInfo.UserName}")}" +
-            $"\n<b>First Name:</b> {Format(userInfo.FirstName)}" +
-            $"\n<b>Last Name:</b> {Format(userInfo.LastName)}" +
-            $"\n<b>Language Code:</b> {Format(userInfo.LanguageCode)}" +
-            $"\n<b>Is Bot:</b> {(userInfo.IsBot ? "✅ Так" : "❌ Ні")}" +
-            $"\n<b>Is Premium:</b> {(userInfo.IsPremium ? "✅ Так" : "❌ Ні")}";
+        private static string BuildUserInfoHtml(StoredMessage stored, UserInfo userInfo)
+        {
+            var userName = string.IsNullOrEmpty(userInfo.UserName) ? "—" : $"@{userInfo.UserName}";
+            var sb = new StringBuilder();
+            sb.Append($"🆔 <b>ID запиту:</b> #<code>{stored.MessageId}</code>");
+            sb.Append("\n\nІнформація про користувача:\n");
+            sb.Append("<table>");
+            AppendRow(sb, "ID", userInfo.Id.ToString());
+            AppendRow(sb, "UserName", userName);
+            AppendRow(sb, "First Name", Format(userInfo.FirstName));
+            AppendRow(sb, "Last Name", Format(userInfo.LastName));
+            AppendRow(sb, "Language Code", Format(userInfo.LanguageCode));
+            AppendRow(sb, "Is Bot", userInfo.IsBot ? "✅ Так" : "❌ Ні");
+            AppendRow(sb, "Is Premium", userInfo.IsPremium ? "✅ Так" : "❌ Ні");
+            sb.Append("</table>");
+            return sb.ToString();
+        }
+
+        private static void AppendRow(StringBuilder sb, string key, string value) =>
+            sb.Append("<tr><td>").Append(key).Append("</td><td>").Append(value).Append("</td></tr>");
 
         private async Task<string> BuildRequestStatsHtmlAsync(long userId)
         {
@@ -125,7 +135,7 @@ namespace FindIFBot.Services.Admin
             counts[RequestStatus.Pending] = pending + 1;
 
             var sb = new StringBuilder();
-            sb.Append("<h3>User Requests Statistic</h3>");
+            sb.Append("<b>User Requests Statistic</b>");
             sb.Append("<table><tr><th>Status</th><th>Count</th></tr>");
 
             var total = 0;
@@ -142,8 +152,8 @@ namespace FindIFBot.Services.Admin
                 total += count;
             }
 
-            sb.Append("<tr><td>Total</td><td>")
-              .Append(total)
+            sb.Append("<tr><td><b>Total</b></td><td>")
+              .Append("<b>").Append(total).Append("</b>")
               .Append("</td></tr></table>");
 
             return sb.ToString();
