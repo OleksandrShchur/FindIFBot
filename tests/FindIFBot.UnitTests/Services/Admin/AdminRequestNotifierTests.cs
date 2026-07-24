@@ -70,7 +70,7 @@ namespace FindIFBot.UnitTests.Services.Admin
             html.Should().Contain("<tr><td>Language Code</td><td>en</td></tr>");
             html.Should().Contain("<tr><td>Is Bot</td><td>❌ Ні</td></tr>");
             html.Should().Contain("<tr><td>Is Premium</td><td>✅ Так</td></tr>");
-            html.Should().Contain("Інформація про користувача:\n<table><tr><td>ID</td><td>");
+            html.Should().Contain("Інформація про користувача:\n<table bordered striped><tr><td>ID</td><td>");
             first.ReplyMarkup.Should().BeNull();
         }
 
