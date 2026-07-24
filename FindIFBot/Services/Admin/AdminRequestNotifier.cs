@@ -70,12 +70,6 @@ namespace FindIFBot.Services.Admin
                     .ToArray();
 
                 await _bot.SendMediaGroup(_options.AdminId, media);
-                await _bot.SendMessage(
-                    _options.AdminId,
-                    "🛠 Дії модерації:",
-                    linkPreviewOptions: NoPreview,
-                    replyMarkup: keyboard
-                );
             }
             else
             {
@@ -87,10 +81,17 @@ namespace FindIFBot.Services.Admin
                     _options.AdminId,
                     body,
                     linkPreviewOptions: NoPreview,
-                    parseMode: ParseMode.Html,
-                    replyMarkup: keyboard
+                    parseMode: ParseMode.Html
                 );
             }
+
+            await _bot.SendMessage(
+                _options.AdminId,
+                $"Дії модерації до #<code>{stored.MessageId}</code>",
+                linkPreviewOptions: NoPreview,
+                parseMode: ParseMode.Html,
+                replyMarkup: keyboard
+            );
 
             return infoMessage.MessageId;
         }

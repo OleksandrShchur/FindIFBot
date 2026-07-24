@@ -23,14 +23,11 @@ namespace FindIFBot.UnitTests.Services.Admin
 
         public AdminRequestNotifierTests()
         {
+            var nextId = AdminInfoMessageId;
             _bot.SendRequest(Arg.Any<SendMessageRequest>(), Arg.Any<CancellationToken>())
-                .Returns(ci =>
-                {
-                    var request = (SendMessageRequest)ci[0];
-                    // First message is user info (no reply markup); later ones may have the keyboard.
-                    var id = request.ReplyMarkup is null ? AdminInfoMessageId : AdminInfoMessageId + 1;
-                    return new Message { Id = id };
-                });
+                .Returns(_ => new Message { Id = nextId++ });
+            _bot.SendRequest(Arg.Any<SendMediaGroupRequest>(), Arg.Any<CancellationToken>())
+                .Returns(_ => new[] { new Message { Id = nextId++ } });
 
             _sut = new AdminRequestNotifier(_bot, Options.Create(new TelegramOptions { AdminId = AdminId }));
         }
@@ -51,6 +48,28 @@ namespace FindIFBot.UnitTests.Services.Admin
         }
 
         [Fact]
+        public async Task SendToAdminAsync_TextOnly_SendsThreeMessages_ContentWithoutKeyboard()
+        {
+            var stored = new StoredMessage(UserId, UserId, "promo text", [], null, MessageId);
+            var userInfo = new UserInfo { Id = UserId };
+
+            await _sut.SendToAdminAsync(stored, userInfo);
+
+            var messages = _bot.SentRequests<SendMessageRequest>();
+            messages.Should().HaveCount(3);
+
+            messages[0].Text.Should().Contain("Інформація про користувача");
+            messages[0].ReplyMarkup.Should().BeNull();
+
+            messages[1].Text.Should().Be("promo text");
+            messages[1].ReplyMarkup.Should().BeNull();
+
+            messages[2].Text.Should().Be($"Дії модерації до #<code>{MessageId}</code>");
+            messages[2].ReplyMarkup.Should().BeOfType<InlineKeyboardMarkup>();
+            messages[2].ParseMode.Should().Be(Telegram.Bot.Types.Enums.ParseMode.Html);
+        }
+
+        [Fact]
         public async Task SendToAdminAsync_TextOnly_IncludesAdvertisementButtonWithCallbackData()
         {
             var stored = new StoredMessage(UserId, UserId, "promo text", [], null, MessageId);
@@ -58,8 +77,7 @@ namespace FindIFBot.UnitTests.Services.Admin
 
             await _sut.SendToAdminAsync(stored, userInfo);
 
-            var moderation = _bot.SentRequests<SendMessageRequest>()
-                .Single(r => r.ReplyMarkup is InlineKeyboardMarkup);
+            var moderation = ActionsMessage();
             var buttons = ((InlineKeyboardMarkup)moderation.ReplyMarkup!)
                 .InlineKeyboard.SelectMany(row => row).ToList();
 
@@ -76,8 +94,7 @@ namespace FindIFBot.UnitTests.Services.Admin
 
             await _sut.SendToAdminAsync(stored, userInfo);
 
-            var moderation = _bot.SentRequests<SendMessageRequest>()
-                .Single(r => r.ReplyMarkup is InlineKeyboardMarkup);
+            var moderation = ActionsMessage();
             var buttons = ((InlineKeyboardMarkup)moderation.ReplyMarkup!)
                 .InlineKeyboard.SelectMany(row => row).ToList();
 
@@ -98,11 +115,11 @@ namespace FindIFBot.UnitTests.Services.Admin
 
             await _sut.SendToAdminAsync(stored, userInfo);
 
-            var moderation = _bot.SentRequests<SendMessageRequest>()
-                .Single(r => r.ReplyMarkup is InlineKeyboardMarkup);
-            moderation.ParseMode.Should().Be(Telegram.Bot.Types.Enums.ParseMode.Html);
-            moderation.Text.Should().Contain("<a href=\"https://example.com/hidden\">post</a>");
-            moderation.Text.Should().Contain(" about town");
+            var content = _bot.SentRequests<SendMessageRequest>()
+                .Single(r => r.ReplyMarkup is null && r.Text != null && !r.Text.Contains("Інформація про користувача"));
+            content.ParseMode.Should().Be(Telegram.Bot.Types.Enums.ParseMode.Html);
+            content.Text.Should().Contain("<a href=\"https://example.com/hidden\">post</a>");
+            content.Text.Should().Contain(" about town");
         }
 
         [Fact]
@@ -113,8 +130,7 @@ namespace FindIFBot.UnitTests.Services.Admin
 
             await _sut.SendToAdminAsync(stored, userInfo);
 
-            var moderation = _bot.SentRequests<SendMessageRequest>()
-                .Single(r => r.ReplyMarkup is InlineKeyboardMarkup);
+            var moderation = ActionsMessage();
             var callbackData = ((InlineKeyboardMarkup)moderation.ReplyMarkup!)
                 .InlineKeyboard.SelectMany(row => row)
                 .Select(b => b.CallbackData)
@@ -126,5 +142,28 @@ namespace FindIFBot.UnitTests.Services.Admin
             callbackData.Should().Contain($"!ask|{UserId}|{MessageId}");
             callbackData.Should().Contain($"*ask|{UserId}|{MessageId}");
         }
+
+        [Fact]
+        public async Task SendToAdminAsync_WithPhotos_SendsMediaGroupThenActionsMessage()
+        {
+            var stored = new StoredMessage(UserId, UserId, "caption", ["photo-1"], null, MessageId);
+            var userInfo = new UserInfo { Id = UserId };
+
+            await _sut.SendToAdminAsync(stored, userInfo);
+
+            _bot.SentRequests<SendMediaGroupRequest>().Should().ContainSingle();
+
+            var messages = _bot.SentRequests<SendMessageRequest>();
+            messages.Should().HaveCount(2);
+            messages[0].Text.Should().Contain("Інформація про користувача");
+            messages[0].ReplyMarkup.Should().BeNull();
+
+            messages[1].Text.Should().Be($"Дії модерації до #<code>{MessageId}</code>");
+            messages[1].ReplyMarkup.Should().BeOfType<InlineKeyboardMarkup>();
+        }
+
+        private SendMessageRequest ActionsMessage() =>
+            _bot.SentRequests<SendMessageRequest>()
+                .Single(r => r.ReplyMarkup is InlineKeyboardMarkup);
     }
 }
