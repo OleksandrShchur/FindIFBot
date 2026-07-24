@@ -12,6 +12,11 @@ namespace FindIFBot.EF.Repositories
         Task<bool> HasHistory(long userId);
 
         /// <summary>
+        /// Returns per-status request counts for the given user (statuses with zero count omitted).
+        /// </summary>
+        Task<Dictionary<RequestStatus, int>> GetStatusCountsByUserIdAsync(long userId);
+
+        /// <summary>
         /// Returns the newest pending requests across all users, capped at <paramref name="limit"/>.
         /// </summary>
         Task<List<UserRequest>> GetPendingAsync(int limit);
