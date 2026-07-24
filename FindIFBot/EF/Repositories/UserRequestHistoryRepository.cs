@@ -46,6 +46,16 @@ namespace FindIFBot.EF.Repositories
                 .AnyAsync(r => r.UserId == userId);
         }
 
+        public async Task<Dictionary<RequestStatus, int>> GetStatusCountsByUserIdAsync(long userId)
+        {
+            return await _db.UserRequests
+                .AsNoTracking()
+                .Where(r => r.UserId == userId)
+                .GroupBy(r => r.Status)
+                .Select(g => new { Status = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.Status, x => x.Count);
+        }
+
         public async Task<List<UserRequest>> GetPendingAsync(int limit)
         {
             return await _db.UserRequests

@@ -1,5 +1,6 @@
 using FindIFBot.Configuration;
 using FindIFBot.Domain;
+using FindIFBot.EF.Repositories;
 using FindIFBot.Persistence;
 using FindIFBot.Services.Admin;
 using FindIFBot.UnitTests.TestSupport;
@@ -19,17 +20,25 @@ namespace FindIFBot.UnitTests.Services.Admin
         private const int AdminInfoMessageId = 501;
 
         private readonly ITelegramBotClient _bot = Substitute.For<ITelegramBotClient>();
+        private readonly IUserRequestHistoryRepository _history = Substitute.For<IUserRequestHistoryRepository>();
         private readonly AdminRequestNotifier _sut;
 
         public AdminRequestNotifierTests()
         {
             var nextId = AdminInfoMessageId;
+            _history.GetStatusCountsByUserIdAsync(Arg.Any<long>())
+                .Returns(new Dictionary<RequestStatus, int>());
+            _bot.SendRequest(Arg.Any<SendRichMessageRequest>(), Arg.Any<CancellationToken>())
+                .Returns(_ => new Message { Id = nextId++ });
             _bot.SendRequest(Arg.Any<SendMessageRequest>(), Arg.Any<CancellationToken>())
                 .Returns(_ => new Message { Id = nextId++ });
             _bot.SendRequest(Arg.Any<SendMediaGroupRequest>(), Arg.Any<CancellationToken>())
                 .Returns(_ => new[] { new Message { Id = nextId++ } });
 
-            _sut = new AdminRequestNotifier(_bot, Options.Create(new TelegramOptions { AdminId = AdminId }));
+            _sut = new AdminRequestNotifier(
+                _bot,
+                Options.Create(new TelegramOptions { AdminId = AdminId }),
+                _history);
         }
 
         [Fact]
@@ -41,32 +50,60 @@ namespace FindIFBot.UnitTests.Services.Admin
             var result = await _sut.SendToAdminAsync(stored, userInfo);
 
             result.Should().Be(AdminInfoMessageId);
-            var first = _bot.SentRequests<SendMessageRequest>().First();
-            first.Text.Should().Contain("Інформація про користувача");
-            first.Text.Should().Contain($"🆔 <b>ID запиту:</b> #<code>{MessageId}</code>");
+            var first = _bot.SentRequests<SendRichMessageRequest>().Should().ContainSingle().Subject;
+            first.RichMessage.Html.Should().Contain("Інформація про користувача");
+            first.RichMessage.Html.Should().Contain($"🆔 <b>ID запиту:</b> #<code>{MessageId}</code>");
             first.ReplyMarkup.Should().BeNull();
         }
 
         [Fact]
-        public async Task SendToAdminAsync_TextOnly_SendsThreeMessages_ContentWithoutKeyboard()
+        public async Task SendToAdminAsync_TextOnly_SendsRichInfoThenTwoMessages_ContentWithoutKeyboard()
         {
             var stored = new StoredMessage(UserId, UserId, "promo text", [], null, MessageId);
             var userInfo = new UserInfo { Id = UserId };
 
             await _sut.SendToAdminAsync(stored, userInfo);
 
-            var messages = _bot.SentRequests<SendMessageRequest>();
-            messages.Should().HaveCount(3);
+            var info = _bot.SentRequests<SendRichMessageRequest>().Should().ContainSingle().Subject;
+            info.RichMessage.Html.Should().Contain("Інформація про користувача");
+            info.ReplyMarkup.Should().BeNull();
 
-            messages[0].Text.Should().Contain("Інформація про користувача");
+            var messages = _bot.SentRequests<SendMessageRequest>();
+            messages.Should().HaveCount(2);
+
+            messages[0].Text.Should().Be("promo text");
             messages[0].ReplyMarkup.Should().BeNull();
 
-            messages[1].Text.Should().Be("promo text");
-            messages[1].ReplyMarkup.Should().BeNull();
+            messages[1].Text.Should().Be($"Дії модерації до #<code>{MessageId}</code>");
+            messages[1].ReplyMarkup.Should().BeOfType<InlineKeyboardMarkup>();
+            messages[1].ParseMode.Should().Be(Telegram.Bot.Types.Enums.ParseMode.Html);
+        }
 
-            messages[2].Text.Should().Be($"Дії модерації до #<code>{MessageId}</code>");
-            messages[2].ReplyMarkup.Should().BeOfType<InlineKeyboardMarkup>();
-            messages[2].ParseMode.Should().Be(Telegram.Bot.Types.Enums.ParseMode.Html);
+        [Fact]
+        public async Task SendToAdminAsync_IncludesRequestStatsTableWithCurrentPending()
+        {
+            _history.GetStatusCountsByUserIdAsync(UserId)
+                .Returns(new Dictionary<RequestStatus, int>
+                {
+                    [RequestStatus.Approved] = 2,
+                    [RequestStatus.Rejected] = 1
+                });
+
+            var stored = new StoredMessage(UserId, UserId, "promo text", [], null, MessageId);
+            var userInfo = new UserInfo { Id = UserId };
+
+            await _sut.SendToAdminAsync(stored, userInfo);
+
+            var html = _bot.SentRequests<SendRichMessageRequest>().Single().RichMessage.Html!;
+            html.Should().Contain("<h3>User Requests Statistic</h3>");
+            html.Should().Contain("<th>Status</th><th>Count</th>");
+            html.Should().Contain("<tr><td>Pending</td><td>1</td></tr>");
+            html.Should().Contain("<tr><td>Approved</td><td>2</td></tr>");
+            html.Should().Contain("<tr><td>Rejected</td><td>1</td></tr>");
+            html.Should().Contain("<tr><td>Total</td><td>4</td></tr>");
+            html.Should().NotContain("Duplicate");
+            html.Should().NotContain("Advertisement");
+            html.Should().NotContain("NeedsAttention");
         }
 
         [Fact]
@@ -116,7 +153,7 @@ namespace FindIFBot.UnitTests.Services.Admin
             await _sut.SendToAdminAsync(stored, userInfo);
 
             var content = _bot.SentRequests<SendMessageRequest>()
-                .Single(r => r.ReplyMarkup is null && r.Text != null && !r.Text.Contains("Інформація про користувача"));
+                .Single(r => r.ReplyMarkup is null);
             content.ParseMode.Should().Be(Telegram.Bot.Types.Enums.ParseMode.Html);
             content.Text.Should().Contain("<a href=\"https://example.com/hidden\">post</a>");
             content.Text.Should().Contain(" about town");
@@ -153,13 +190,15 @@ namespace FindIFBot.UnitTests.Services.Admin
 
             _bot.SentRequests<SendMediaGroupRequest>().Should().ContainSingle();
 
-            var messages = _bot.SentRequests<SendMessageRequest>();
-            messages.Should().HaveCount(2);
-            messages[0].Text.Should().Contain("Інформація про користувача");
-            messages[0].ReplyMarkup.Should().BeNull();
+            _bot.SentRequests<SendRichMessageRequest>().Should().ContainSingle();
+            var info = _bot.SentRequests<SendRichMessageRequest>().Single();
+            info.RichMessage.Html.Should().Contain("Інформація про користувача");
+            info.ReplyMarkup.Should().BeNull();
 
-            messages[1].Text.Should().Be($"Дії модерації до #<code>{MessageId}</code>");
-            messages[1].ReplyMarkup.Should().BeOfType<InlineKeyboardMarkup>();
+            var messages = _bot.SentRequests<SendMessageRequest>();
+            messages.Should().HaveCount(1);
+            messages[0].Text.Should().Be($"Дії модерації до #<code>{MessageId}</code>");
+            messages[0].ReplyMarkup.Should().BeOfType<InlineKeyboardMarkup>();
         }
 
         private SendMessageRequest ActionsMessage() =>

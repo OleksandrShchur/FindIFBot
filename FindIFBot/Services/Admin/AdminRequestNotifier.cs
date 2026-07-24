@@ -1,5 +1,7 @@
+using System.Text;
 using FindIFBot.Configuration;
 using FindIFBot.Domain;
+using FindIFBot.EF.Repositories;
 using FindIFBot.Persistence;
 using FindIFBot.Utils;
 using Microsoft.Extensions.Options;
@@ -12,33 +14,40 @@ namespace FindIFBot.Services.Admin
 {
     public class AdminRequestNotifier : IAdminRequestNotifier
     {
+        private static readonly RequestStatus[] StatusOrder =
+        [
+            RequestStatus.Pending,
+            RequestStatus.Approved,
+            RequestStatus.Rejected,
+            RequestStatus.Duplicate,
+            RequestStatus.Advertisement,
+            RequestStatus.NeedsAttention
+        ];
+
         private readonly ITelegramBotClient _bot;
         private readonly TelegramOptions _options;
+        private readonly IUserRequestHistoryRepository _history;
         private static readonly LinkPreviewOptions NoPreview = new() { IsDisabled = true };
 
         public AdminRequestNotifier(
             ITelegramBotClient bot,
-            IOptions<TelegramOptions> options)
+            IOptions<TelegramOptions> options,
+            IUserRequestHistoryRepository history)
         {
             _bot = bot;
             _options = options.Value;
+            _history = history;
         }
 
         public async Task<int> SendToAdminAsync(StoredMessage stored, UserInfo userInfo)
         {
-            var infoMessage = await _bot.SendMessage(
+            var infoHtml = BuildUserInfoHtml(stored, userInfo)
+                           + "\n\n"
+                           + await BuildRequestStatsHtmlAsync(stored.UserId);
+
+            var infoMessage = await _bot.SendRichMessage(
                 _options.AdminId,
-                $"🆔 <b>ID запиту:</b> #<code>{stored.MessageId}</code>" +
-                $"\n\nІнформація про користувача:" +
-                $"\n\n<b>ID:</b> {userInfo.Id}" +
-                $"\n<b>UserName:</b> {(string.IsNullOrEmpty(userInfo.UserName) ? "—" : $"@{userInfo.UserName}")}" +
-                $"\n<b>First Name:</b> {Format(userInfo.FirstName)}" +
-                $"\n<b>Last Name:</b> {Format(userInfo.LastName)}" +
-                $"\n<b>Language Code:</b> {Format(userInfo.LanguageCode)}" +
-                $"\n<b>Is Bot:</b> {(userInfo.IsBot ? "✅ Так" : "❌ Ні")}" +
-                $"\n<b>Is Premium:</b> {(userInfo.IsPremium ? "✅ Так" : "❌ Ні")}",
-                linkPreviewOptions: NoPreview,
-                parseMode: ParseMode.Html);
+                new InputRichMessage { Html = infoHtml });
 
             var keyboard = new InlineKeyboardMarkup(new[]
             {
@@ -94,6 +103,50 @@ namespace FindIFBot.Services.Admin
             );
 
             return infoMessage.MessageId;
+        }
+
+        private static string BuildUserInfoHtml(StoredMessage stored, UserInfo userInfo) =>
+            $"🆔 <b>ID запиту:</b> #<code>{stored.MessageId}</code>" +
+            $"\n\nІнформація про користувача:" +
+            $"\n\n<b>ID:</b> {userInfo.Id}" +
+            $"\n<b>UserName:</b> {(string.IsNullOrEmpty(userInfo.UserName) ? "—" : $"@{userInfo.UserName}")}" +
+            $"\n<b>First Name:</b> {Format(userInfo.FirstName)}" +
+            $"\n<b>Last Name:</b> {Format(userInfo.LastName)}" +
+            $"\n<b>Language Code:</b> {Format(userInfo.LanguageCode)}" +
+            $"\n<b>Is Bot:</b> {(userInfo.IsBot ? "✅ Так" : "❌ Ні")}" +
+            $"\n<b>Is Premium:</b> {(userInfo.IsPremium ? "✅ Так" : "❌ Ні")}";
+
+        private async Task<string> BuildRequestStatsHtmlAsync(long userId)
+        {
+            var counts = await _history.GetStatusCountsByUserIdAsync(userId);
+
+            // Current request is persisted after this message is sent.
+            counts.TryGetValue(RequestStatus.Pending, out var pending);
+            counts[RequestStatus.Pending] = pending + 1;
+
+            var sb = new StringBuilder();
+            sb.Append("<h3>User Requests Statistic</h3>");
+            sb.Append("<table><tr><th>Status</th><th>Count</th></tr>");
+
+            var total = 0;
+            foreach (var status in StatusOrder)
+            {
+                if (!counts.TryGetValue(status, out var count) || count <= 0)
+                    continue;
+
+                sb.Append("<tr><td>")
+                  .Append(status)
+                  .Append("</td><td>")
+                  .Append(count)
+                  .Append("</td></tr>");
+                total += count;
+            }
+
+            sb.Append("<tr><td>Total</td><td>")
+              .Append(total)
+              .Append("</td></tr></table>");
+
+            return sb.ToString();
         }
 
         private static string? FormatBodyOrNull(StoredMessage stored) =>
