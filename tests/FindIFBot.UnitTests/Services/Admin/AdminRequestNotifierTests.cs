@@ -45,14 +45,32 @@ namespace FindIFBot.UnitTests.Services.Admin
         public async Task SendToAdminAsync_TextOnly_ReturnsUserInfoMessageId()
         {
             var stored = new StoredMessage(UserId, UserId, "promo text", [], null, MessageId);
-            var userInfo = new UserInfo { Id = UserId };
+            var userInfo = new UserInfo
+            {
+                Id = UserId,
+                UserName = "demo_user",
+                FirstName = "Ada",
+                LastName = "Lovelace",
+                LanguageCode = "en",
+                IsBot = false,
+                IsPremium = true
+            };
 
             var result = await _sut.SendToAdminAsync(stored, userInfo);
 
             result.Should().Be(AdminInfoMessageId);
             var first = _bot.SentRequests<SendRichMessageRequest>().Should().ContainSingle().Subject;
-            first.RichMessage.Html.Should().Contain("Інформація про користувача");
-            first.RichMessage.Html.Should().Contain($"🆔 <b>ID запиту:</b> #<code>{MessageId}</code>");
+            var html = first.RichMessage.Html!;
+            html.Should().Contain("Інформація про користувача");
+            html.Should().Contain($"🆔 <b>ID запиту:</b> #<code>{MessageId}</code>");
+            html.Should().Contain($"<tr><td>ID</td><td>{UserId}</td></tr>");
+            html.Should().Contain("<tr><td>UserName</td><td>@demo_user</td></tr>");
+            html.Should().Contain("<tr><td>First Name</td><td>Ada</td></tr>");
+            html.Should().Contain("<tr><td>Last Name</td><td>Lovelace</td></tr>");
+            html.Should().Contain("<tr><td>Language Code</td><td>en</td></tr>");
+            html.Should().Contain("<tr><td>Is Bot</td><td>❌ Ні</td></tr>");
+            html.Should().Contain("<tr><td>Is Premium</td><td>✅ Так</td></tr>");
+            html.Should().Contain("Інформація про користувача:\n<table><tr><td>ID</td><td>");
             first.ReplyMarkup.Should().BeNull();
         }
 
@@ -95,12 +113,12 @@ namespace FindIFBot.UnitTests.Services.Admin
             await _sut.SendToAdminAsync(stored, userInfo);
 
             var html = _bot.SentRequests<SendRichMessageRequest>().Single().RichMessage.Html!;
-            html.Should().Contain("<h3>User Requests Statistic</h3>");
+            html.Should().Contain("<b>User Requests Statistic</b>");
             html.Should().Contain("<th>Status</th><th>Count</th>");
             html.Should().Contain("<tr><td>Pending</td><td>1</td></tr>");
             html.Should().Contain("<tr><td>Approved</td><td>2</td></tr>");
             html.Should().Contain("<tr><td>Rejected</td><td>1</td></tr>");
-            html.Should().Contain("<tr><td>Total</td><td>4</td></tr>");
+            html.Should().Contain("<tr><td><b>Total</b></td><td><b>4</b></td></tr>");
             html.Should().NotContain("Duplicate");
             html.Should().NotContain("Advertisement");
             html.Should().NotContain("NeedsAttention");
