@@ -111,7 +111,7 @@ namespace FindIFBot.Services.Admin
             var sb = new StringBuilder();
             sb.Append($"🆔 <b>ID запиту:</b> #<code>{stored.MessageId}</code>");
             sb.Append("\n\nІнформація про користувача:\n");
-            sb.Append("<table>");
+            sb.Append("<table bordered striped>");
             AppendRow(sb, "ID", userInfo.Id.ToString());
             AppendRow(sb, "UserName", userName);
             AppendRow(sb, "First Name", Format(userInfo.FirstName));
@@ -136,7 +136,7 @@ namespace FindIFBot.Services.Admin
 
             var sb = new StringBuilder();
             sb.Append("<b>User Requests Statistic</b>");
-            sb.Append("<table><tr><th>Status</th><th>Count</th></tr>");
+            sb.Append("<table bordered striped><tr><th>Status</th><th>Count</th></tr>");
 
             var total = 0;
             foreach (var status in StatusOrder)
