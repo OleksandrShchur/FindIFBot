@@ -1,6 +1,7 @@
 using FindIFBot.Configuration;
 using FindIFBot.EF.Repositories;
 using FindIFBot.Handlers;
+using FindIFBot.Helpers;
 using FindIFBot.Helpers.Logs;
 using FindIFBot.Services.Messages;
 using FindIFBot.UnitTests.TestSupport;
@@ -51,6 +52,7 @@ namespace FindIFBot.UnitTests.Services.Messages
                 new PolicyHandler(),
                 new SupportUsHandler(telegramOptions),
                 new ChannelLinkHandler(telegramOptions),
+                new VersionHandler(),
                 new UnknownHandler(helpHandler));
         }
 
@@ -76,6 +78,19 @@ namespace FindIFBot.UnitTests.Services.Messages
 
             var sent = _bot.SingleRequest<SendMessageRequest>();
             sent.Text.Should().Contain("Що я вмію");
+            sent.ReplyMarkup.Should().BeOfType<ReplyKeyboardMarkup>();
+        }
+
+        [Fact]
+        public async Task Given_VersionCommand_When_Route_Then_SendsVersionWithReplyKeyboard()
+        {
+            var message = TelegramBuilder.TextMessage("/version", userId: UserId, chatId: ChatId);
+
+            await _sut.RouteAsync(message, "/version");
+
+            var sent = _bot.SingleRequest<SendMessageRequest>();
+            sent.Text.Should().Contain("Версія бота");
+            sent.Text.Should().Contain(BotVersion.Current.ToString());
             sent.ReplyMarkup.Should().BeOfType<ReplyKeyboardMarkup>();
         }
 
