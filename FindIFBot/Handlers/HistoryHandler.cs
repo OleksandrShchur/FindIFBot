@@ -1,3 +1,4 @@
+using System.Text;
 using FindIFBot.Configuration;
 using FindIFBot.Domain;
 using FindIFBot.EF.Repositories;
@@ -12,6 +13,26 @@ namespace FindIFBot.Handlers
 {
     public class HistoryHandler : IAsyncCommandHandler
     {
+        private static readonly RequestStatus[] StatusOrder =
+        [
+            RequestStatus.Pending,
+            RequestStatus.Approved,
+            RequestStatus.Rejected,
+            RequestStatus.Duplicate,
+            RequestStatus.Advertisement,
+            RequestStatus.NeedsAttention
+        ];
+
+        private static readonly Dictionary<RequestStatus, string> StatusLabels = new()
+        {
+            [RequestStatus.Pending] = "На модерації",
+            [RequestStatus.Approved] = "Затверджені",
+            [RequestStatus.Rejected] = "Відхилені",
+            [RequestStatus.Duplicate] = "Дублікати",
+            [RequestStatus.Advertisement] = "Реклама",
+            [RequestStatus.NeedsAttention] = "Уточнення"
+        };
+
         private readonly IUserRequestHistoryRepository _history;
         private readonly HistoryOptions _options;
         private readonly TelegramOptions _telegram;
@@ -47,6 +68,11 @@ namespace FindIFBot.Handlers
 
                 return;
             }
+
+            var counts = await _history.GetStatusCountsByUserIdAsync(userId);
+            await bot.SendRichMessage(
+                chatId,
+                new InputRichMessage { Html = BuildRequestStatsHtml(counts) });
 
             var maxItems = _options.MaxItemsPerSection;
 
@@ -155,6 +181,33 @@ namespace FindIFBot.Handlers
                     );
                 }
             }
+        }
+
+        private static string BuildRequestStatsHtml(Dictionary<RequestStatus, int> counts)
+        {
+            var sb = new StringBuilder();
+            sb.Append("<b>Статистика запитів</b>");
+            sb.Append("<table bordered striped><tr><th>Статус</th><th>Кількість</th></tr>");
+
+            var total = 0;
+            foreach (var status in StatusOrder)
+            {
+                if (!counts.TryGetValue(status, out var count) || count <= 0)
+                    continue;
+
+                sb.Append("<tr><td>")
+                  .Append(StatusLabels[status])
+                  .Append("</td><td>")
+                  .Append(count)
+                  .Append("</td></tr>");
+                total += count;
+            }
+
+            sb.Append("<tr><td><b>Всього</b></td><td>")
+              .Append("<b>").Append(total).Append("</b>")
+              .Append("</td></tr></table>");
+
+            return sb.ToString();
         }
     }
 }
