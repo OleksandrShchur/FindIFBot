@@ -21,6 +21,7 @@ namespace FindIFBot.Helpers
         public const string Channel = "/channel";
         public const string History = "/history";
         public const string Pending = "/pending";
+        public const string Version = "/version";
         public const string MainMenuCallback = "main_menu";
 
         // Trigger sets are stored in normalized form so they can be compared directly
@@ -32,6 +33,7 @@ namespace FindIFBot.Helpers
         private static readonly string[] ChannelTriggers = { Channel, "🔗 канал", "канал" };
         private static readonly string[] HistoryTriggers = { History, "📋 історія запитів", "історія запитів", "історія" };
         private static readonly string[] AdsCollabTriggers = { Ads, "🤝 реклама та співпраця", "реклама та співпраця", "реклама", "співпраця" };
+        private static readonly string[] VersionTriggers = { Version };
         private static readonly string[] PendingTriggers =
         {
             Pending,
@@ -51,6 +53,7 @@ namespace FindIFBot.Helpers
         public static bool IsChannel(string normalized) => ChannelTriggers.Contains(normalized);
         public static bool IsHistory(string normalized) => HistoryTriggers.Contains(normalized);
         public static bool IsAdsCollaboration(string normalized) => AdsCollabTriggers.Contains(normalized);
+        public static bool IsVersion(string normalized) => VersionTriggers.Contains(normalized);
         public static bool IsPending(string normalized) => PendingTriggers.Contains(normalized);
         public static bool IsMainMenu(string normalized) => normalized == MainMenuCallback;
 
@@ -67,6 +70,7 @@ namespace FindIFBot.Helpers
             || IsChannel(normalized)
             || IsHistory(normalized)
             || IsAdsCollaboration(normalized)
+            || IsVersion(normalized)
             || IsPending(normalized);
     }
 }

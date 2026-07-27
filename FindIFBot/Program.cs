@@ -118,6 +118,7 @@ builder.Services.AddScoped<IAsyncCommandHandler, AdsCollaborationHandler>();
 builder.Services.AddScoped<IAsyncCommandHandler, AdminPendingHandler>();
 builder.Services.AddScoped<SupportUsHandler>();
 builder.Services.AddScoped<ChannelLinkHandler>();
+builder.Services.AddScoped<VersionHandler>();
 builder.Services.AddScoped<AskHandler>();
 builder.Services.AddScoped<HelpHandler>();
 builder.Services.AddScoped<PolicyHandler>();
