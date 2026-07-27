@@ -26,6 +26,7 @@ namespace FindIFBot.Services.Messages
         private readonly PolicyHandler _policyHandler;
         private readonly SupportUsHandler _supportUsHandler;
         private readonly ChannelLinkHandler _channelLinkHandler;
+        private readonly VersionHandler _versionHandler;
         private readonly UnknownHandler _unknownHandler;
 
         public MessageCommandRouter(
@@ -38,6 +39,7 @@ namespace FindIFBot.Services.Messages
             PolicyHandler policyHandler,
             SupportUsHandler supportUsHandler,
             ChannelLinkHandler channelLinkHandler,
+            VersionHandler versionHandler,
             UnknownHandler unknownHandler)
         {
             _bot = bot;
@@ -51,6 +53,7 @@ namespace FindIFBot.Services.Messages
             _policyHandler = policyHandler;
             _supportUsHandler = supportUsHandler;
             _channelLinkHandler = channelLinkHandler;
+            _versionHandler = versionHandler;
             _unknownHandler = unknownHandler;
         }
 
@@ -84,6 +87,7 @@ namespace FindIFBot.Services.Messages
                 BotCommands.IsPolicy(normalized) ? _policyHandler :
                 BotCommands.IsSupport(normalized) ? _supportUsHandler :
                 BotCommands.IsChannel(normalized) ? _channelLinkHandler :
+                BotCommands.IsVersion(normalized) ? _versionHandler :
                 _unknownHandler;
 
             await _logger.LogInfo(Component, $"Stateless command handled: {normalized} | UserId: {userId}");
