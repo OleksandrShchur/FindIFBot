@@ -77,6 +77,8 @@ Log.Logger = new LoggerConfiguration()
 
 builder.Host.UseSerilog();
 
+builder.Services.AddSingleton(TimeProvider.System);
+
 // Telegram client
 builder.Services.AddSingleton<ITelegramBotClient>(sp =>
 {
