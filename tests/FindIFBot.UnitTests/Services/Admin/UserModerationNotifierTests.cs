@@ -18,23 +18,43 @@ namespace FindIFBot.UnitTests.Services.Admin
 
         private readonly ITelegramBotClient _bot = Substitute.For<ITelegramBotClient>();
         private readonly IUserRequestHistoryRepository _history = Substitute.For<IUserRequestHistoryRepository>();
-        private readonly UserModerationNotifier _sut;
 
-        public UserModerationNotifierTests()
+        private UserModerationNotifier CreateSut(TimeProvider timeProvider)
         {
             var options = Options.Create(new TelegramOptions { DirectChatLink = DirectLink });
-            _sut = new UserModerationNotifier(_bot, _history, options);
+            return new UserModerationNotifier(_bot, _history, options, timeProvider);
         }
 
         [Fact]
-        public async Task NotifySubmittedAsync_IncludesRequestIdInUkrainian()
+        public async Task NotifySubmittedAsync_DuringWorkingHours_UsesAsapMessage()
         {
-            await _sut.NotifySubmittedAsync(UserId, MessageId);
+            var sut = CreateSut(FixedKyivTime(12, 0));
+
+            await sut.NotifySubmittedAsync(UserId, MessageId);
 
             var sent = _bot.SingleRequest<SendMessageRequest>();
             sent.ChatId.Identifier.Should().Be(UserId);
             sent.ParseMode.Should().Be(ParseMode.Html);
             sent.Text.Should().Contain("Запит відправлено на модерацію");
+            sent.Text.Should().Contain("наші модератори скоро перевірять ваш допис");
+            sent.Text.Should().NotContain("робочі години");
+            sent.Text.Should().Contain($"🆔 <b>ID запиту:</b> #<code>{MessageId}</code>");
+        }
+
+        [Fact]
+        public async Task NotifySubmittedAsync_OutsideWorkingHours_UsesWorkingHoursMessage()
+        {
+            var sut = CreateSut(FixedKyivTime(23, 0));
+
+            await sut.NotifySubmittedAsync(UserId, MessageId);
+
+            var sent = _bot.SingleRequest<SendMessageRequest>();
+            sent.ChatId.Identifier.Should().Be(UserId);
+            sent.ParseMode.Should().Be(ParseMode.Html);
+            sent.Text.Should().Contain("Запит відправлено на модерацію");
+            sent.Text.Should().Contain("робочі години — з 9:00 до 22:00");
+            sent.Text.Should().Contain("київським часом");
+            sent.Text.Should().NotContain("наші модератори скоро перевірять ваш допис");
             sent.Text.Should().Contain($"🆔 <b>ID запиту:</b> #<code>{MessageId}</code>");
         }
 
@@ -42,8 +62,9 @@ namespace FindIFBot.UnitTests.Services.Admin
         public async Task NotifyPublishedAsync_IncludesRequestId()
         {
             const string channelLink = "https://t.me/c/1/2";
+            var sut = CreateSut(TimeProvider.System);
 
-            await _sut.NotifyPublishedAsync(UserId, channelLink, MessageId);
+            await sut.NotifyPublishedAsync(UserId, channelLink, MessageId);
 
             var sent = _bot.SingleRequest<SendMessageRequest>();
             sent.ChatId.Identifier.Should().Be(UserId);
@@ -56,7 +77,9 @@ namespace FindIFBot.UnitTests.Services.Admin
         [Fact]
         public async Task NotifyRejectedAsync_IncludesRequestIdAndRepliesToOriginal()
         {
-            await _sut.NotifyRejectedAsync(UserId, MessageId);
+            var sut = CreateSut(TimeProvider.System);
+
+            await sut.NotifyRejectedAsync(UserId, MessageId);
 
             var sent = _bot.SingleRequest<SendMessageRequest>();
             sent.ReplyParameters!.MessageId.Should().Be(MessageId);
@@ -67,7 +90,9 @@ namespace FindIFBot.UnitTests.Services.Admin
         [Fact]
         public async Task NotifyDuplicateAsync_IncludesRequestIdAndRepliesToOriginal()
         {
-            await _sut.NotifyDuplicateAsync(UserId, MessageId);
+            var sut = CreateSut(TimeProvider.System);
+
+            await sut.NotifyDuplicateAsync(UserId, MessageId);
 
             var sent = _bot.SingleRequest<SendMessageRequest>();
             sent.ReplyParameters!.MessageId.Should().Be(MessageId);
@@ -79,7 +104,9 @@ namespace FindIFBot.UnitTests.Services.Admin
         [Fact]
         public async Task NotifyAdvertisementAsync_SendsMessageToUserWithDirectChatButton()
         {
-            await _sut.NotifyAdvertisementAsync(UserId, MessageId);
+            var sut = CreateSut(TimeProvider.System);
+
+            await sut.NotifyAdvertisementAsync(UserId, MessageId);
 
             var sent = _bot.SingleRequest<SendMessageRequest>();
             sent.ChatId.Identifier.Should().Be(UserId);
@@ -92,7 +119,9 @@ namespace FindIFBot.UnitTests.Services.Admin
         [Fact]
         public async Task NotifyAdvertisementAsync_RepliesToOriginalRequestUsingHtml()
         {
-            await _sut.NotifyAdvertisementAsync(UserId, MessageId);
+            var sut = CreateSut(TimeProvider.System);
+
+            await sut.NotifyAdvertisementAsync(UserId, MessageId);
 
             var sent = _bot.SingleRequest<SendMessageRequest>();
             sent.ReplyParameters!.MessageId.Should().Be(MessageId);
@@ -104,7 +133,9 @@ namespace FindIFBot.UnitTests.Services.Admin
         [Fact]
         public async Task NotifyNeedsAttentionAsync_IncludesRequestIdAndDirectChatButton()
         {
-            await _sut.NotifyNeedsAttentionAsync(UserId, MessageId);
+            var sut = CreateSut(TimeProvider.System);
+
+            await sut.NotifyNeedsAttentionAsync(UserId, MessageId);
 
             var sent = _bot.SingleRequest<SendMessageRequest>();
             sent.ReplyParameters!.MessageId.Should().Be(MessageId);
@@ -115,6 +146,39 @@ namespace FindIFBot.UnitTests.Services.Admin
             var keyboard = sent.ReplyMarkup.Should().BeOfType<InlineKeyboardMarkup>().Subject;
             var button = keyboard.InlineKeyboard.SelectMany(row => row).Single();
             button.Url.Should().Be(DirectLink);
+        }
+
+        private static TimeProvider FixedKyivTime(int hour, int minute)
+        {
+            var kyiv = ResolveKyivTimeZone();
+            var local = new DateTime(2026, 7, 28, hour, minute, 0, DateTimeKind.Unspecified);
+            var utc = TimeZoneInfo.ConvertTimeToUtc(local, kyiv);
+            return new FixedTimeProvider(new DateTimeOffset(utc, TimeSpan.Zero));
+        }
+
+        private static TimeZoneInfo ResolveKyivTimeZone()
+        {
+            try
+            {
+                return TimeZoneInfo.FindSystemTimeZoneById("Europe/Kyiv");
+            }
+            catch (TimeZoneNotFoundException)
+            {
+                return TimeZoneInfo.FindSystemTimeZoneById("FLE Standard Time");
+            }
+            catch (InvalidTimeZoneException)
+            {
+                return TimeZoneInfo.FindSystemTimeZoneById("FLE Standard Time");
+            }
+        }
+
+        private sealed class FixedTimeProvider : TimeProvider
+        {
+            private readonly DateTimeOffset _utcNow;
+
+            public FixedTimeProvider(DateTimeOffset utcNow) => _utcNow = utcNow;
+
+            public override DateTimeOffset GetUtcNow() => _utcNow;
         }
     }
 }
