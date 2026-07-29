@@ -2,6 +2,6 @@ namespace FindIFBot.Helpers
 {
     public static class BotVersion
     {
-        public const int Current = 55;
+        public const int Current = 56;
     }
 }

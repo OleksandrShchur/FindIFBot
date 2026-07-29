@@ -10,3 +10,5 @@ tests/FindIFBot.IntegrationTests/bin
 tests/FindIFBot.IntegrationTests/obj
 tests/FindIFBot.UnitTests/bin
 tests/FindIFBot.UnitTests/obj
+FindIFBot/appsettings.dev.json
+FindIFBot/appsettings.prod.json
