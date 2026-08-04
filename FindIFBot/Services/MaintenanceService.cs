@@ -1,7 +1,12 @@
 ﻿using FindIFBot.Configuration;
+using FindIFBot.Domain;
 using FindIFBot.EF;
+using FindIFBot.EF.Entities;
+using FindIFBot.Helpers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using System.Globalization;
+using System.Text;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
@@ -15,19 +20,22 @@ namespace FindIFBot.Services
         private readonly ITelegramBotClient _botClient;
         private readonly TelegramOptions _telegramOptions;
         private readonly BotDbContext _dbContext;
+        private readonly TimeProvider _timeProvider;
         private static readonly LinkPreviewOptions NoPreview = new() { IsDisabled = true };
 
         public MaintenanceService(ILogger<MaintenanceService> logger,
             IWebHostEnvironment environment,
             ITelegramBotClient botClient,
             IOptions<TelegramOptions> telegramOptions,
-            BotDbContext dbContext)
+            BotDbContext dbContext,
+            TimeProvider? timeProvider = null)
         {
             _logger = logger;
             _environment = environment;
             _botClient = botClient;
             _telegramOptions = telegramOptions.Value;
             _dbContext = dbContext;
+            _timeProvider = timeProvider ?? TimeProvider.System;
         }
 
         public async Task ProcessYesterdayLogsAsync(CancellationToken cancellationToken = default)
@@ -104,17 +112,92 @@ namespace FindIFBot.Services
 
         public async Task SendDailyStatisticsAsync(CancellationToken cancellationToken = default)
         {
-            var userCount = await _dbContext.UserSessions
+            var kyivDate = KyivWorkingHours.GetKyivDate(_timeProvider);
+            var (dayStartUtc, dayEndUtc) = KyivWorkingHours.GetKyivDayUtcRange(kyivDate);
+
+            var botUserCount = await _dbContext.UserSessions
                 .AsNoTracking()
                 .CountAsync(cancellationToken);
+
+            var channelSubscriberCount = await _botClient.GetChatMemberCount(
+                _telegramOptions.UserOutputChannel,
+                cancellationToken);
+
+            var postsCount = await _dbContext.UserRequests
+                .AsNoTracking()
+                .CountAsync(r =>
+                    r.Status == RequestStatus.Approved
+                    && r.PublishedAtUtc != null
+                    && r.PublishedAtUtc >= dayStartUtc
+                    && r.PublishedAtUtc < dayEndUtc,
+                    cancellationToken);
+
+            await UpsertDailyStatisticAsync(
+                kyivDate,
+                botUserCount,
+                channelSubscriberCount,
+                postsCount,
+                cancellationToken);
+
+            var message = BuildStatisticsMessage(kyivDate, botUserCount, channelSubscriberCount, postsCount);
 
             await _botClient.SendMessage(
                 chatId: _telegramOptions.LogsOutputChannel,
                 messageThreadId: _telegramOptions.LogsThreadId,
-                text: $"📊 Daily Statistics — {DateTime.Today:dd.MM.yyyy}\n👥 Total users: {userCount:N0}",
+                text: message,
                 linkPreviewOptions: NoPreview,
                 parseMode: ParseMode.Html,
                 cancellationToken: cancellationToken);
+        }
+
+        private async Task UpsertDailyStatisticAsync(
+            DateOnly kyivDate,
+            int botUserCount,
+            int channelSubscriberCount,
+            int postsCount,
+            CancellationToken cancellationToken)
+        {
+            var existing = await _dbContext.ChannelDailyStatistics
+                .FirstOrDefaultAsync(s => s.Date == kyivDate, cancellationToken);
+
+            if (existing is null)
+            {
+                _dbContext.ChannelDailyStatistics.Add(new ChannelDailyStatistic
+                {
+                    Date = kyivDate,
+                    BotUserCount = botUserCount,
+                    ChannelSubscriberCount = channelSubscriberCount,
+                    PostsCount = postsCount,
+                    CreatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime
+                });
+            }
+            else
+            {
+                existing.BotUserCount = botUserCount;
+                existing.ChannelSubscriberCount = channelSubscriberCount;
+                existing.PostsCount = postsCount;
+            }
+
+            await _dbContext.SaveChangesAsync(cancellationToken);
+        }
+
+        private static string BuildStatisticsMessage(
+            DateOnly kyivDate,
+            int botUserCount,
+            int channelSubscriberCount,
+            int postsCount)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine($"📊 Daily Statistics — {kyivDate:dd.MM.yyyy}");
+            sb.AppendLine();
+            sb.Append("<pre>");
+            sb.AppendLine("Metric                  Value");
+            sb.AppendLine("----------------------  ------");
+            sb.AppendLine($"Bot users               {botUserCount.ToString("N0", CultureInfo.InvariantCulture),6}");
+            sb.AppendLine($"Channel subscribers     {channelSubscriberCount.ToString("N0", CultureInfo.InvariantCulture),6}");
+            sb.AppendLine($"Posts today             {postsCount.ToString("N0", CultureInfo.InvariantCulture),6}");
+            sb.Append("</pre>");
+            return sb.ToString();
         }
     }
 }
