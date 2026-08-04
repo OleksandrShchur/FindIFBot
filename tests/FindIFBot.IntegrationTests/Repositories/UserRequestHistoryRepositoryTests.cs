@@ -127,14 +127,21 @@ namespace FindIFBot.IntegrationTests.Repositories
             await new UserRequestHistoryRepository(db.CreateContext()).Add(approved);
             await new UserRequestHistoryRepository(db.CreateContext()).Add(pending);
 
+            var before = DateTime.UtcNow;
             await new UserRequestHistoryRepository(db.CreateContext())
                 .SetChannelLinkAsync(100, 1, "https://t.me/c/approved");
+            var after = DateTime.UtcNow;
             await new UserRequestHistoryRepository(db.CreateContext())
                 .SetChannelLinkAsync(100, 2, "https://t.me/c/pending");
 
             var repo = new UserRequestHistoryRepository(db.CreateContext());
-            (await repo.GetById(approved.Id))!.ChannelLink.Should().Be("https://t.me/c/approved");
+            var storedApproved = await repo.GetById(approved.Id);
+            storedApproved!.ChannelLink.Should().Be("https://t.me/c/approved");
+            storedApproved.PublishedAtUtc.Should().NotBeNull();
+            storedApproved.PublishedAtUtc!.Value.Should().BeOnOrAfter(before.AddSeconds(-1));
+            storedApproved.PublishedAtUtc.Value.Should().BeOnOrBefore(after.AddSeconds(1));
             (await new UserRequestHistoryRepository(db.CreateContext()).GetById(pending.Id))!.ChannelLink.Should().BeNull();
+            (await new UserRequestHistoryRepository(db.CreateContext()).GetById(pending.Id))!.PublishedAtUtc.Should().BeNull();
         }
 
         [Fact]

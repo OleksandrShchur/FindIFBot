@@ -12,7 +12,8 @@ namespace FindIFBot.IntegrationTests.Repositories
             string? channelLink = null,
             DateTime? submittedAt = null,
             Guid? id = null,
-            int? adminInfoMessageId = null) =>
+            int? adminInfoMessageId = null,
+            DateTime? publishedAtUtc = null) =>
             new()
             {
                 Id = id ?? Guid.NewGuid(),
@@ -21,7 +22,8 @@ namespace FindIFBot.IntegrationTests.Repositories
                 Status = status,
                 ChannelLink = channelLink,
                 SubmittedAt = submittedAt ?? DateTime.UtcNow,
-                AdminInfoMessageId = adminInfoMessageId
+                AdminInfoMessageId = adminInfoMessageId,
+                PublishedAtUtc = publishedAtUtc
             };
     }
 }
