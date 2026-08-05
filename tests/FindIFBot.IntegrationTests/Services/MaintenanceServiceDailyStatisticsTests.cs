@@ -1,7 +1,6 @@
 using FindIFBot.Configuration;
 using FindIFBot.Domain;
 using FindIFBot.EF.Entities;
-using FindIFBot.Helpers;
 using FindIFBot.IntegrationTests.Repositories;
 using FindIFBot.Services;
 using Microsoft.AspNetCore.Hosting;
@@ -32,7 +31,8 @@ namespace FindIFBot.IntegrationTests.Services
         {
             using var db = new SqliteTestDatabase();
             var kyivNow = FixedKyivTime(2026, 8, 4, 21, 0);
-            var (dayStart, dayEnd) = KyivWorkingHours.GetKyivDayUtcRange(new DateOnly(2026, 8, 4));
+            var nowUtc = kyivNow.GetUtcNow().UtcDateTime;
+            var windowStartUtc = nowUtc.AddHours(-24);
 
             await using (var seed = db.CreateContext())
             {
@@ -43,19 +43,19 @@ namespace FindIFBot.IntegrationTests.Services
                     userMessageId: 1,
                     status: RequestStatus.Approved,
                     channelLink: "https://t.me/c/1",
-                    publishedAtUtc: dayStart.AddHours(2)));
+                    publishedAtUtc: windowStartUtc.AddHours(2)));
                 seed.UserRequests.Add(RequestBuilder.Create(
                     userId: 11,
                     userMessageId: 2,
                     status: RequestStatus.Approved,
                     channelLink: "https://t.me/c/2",
-                    publishedAtUtc: dayStart.AddHours(5)));
+                    publishedAtUtc: nowUtc.AddHours(-1)));
                 seed.UserRequests.Add(RequestBuilder.Create(
                     userId: 12,
                     userMessageId: 3,
                     status: RequestStatus.Approved,
                     channelLink: "https://t.me/c/3",
-                    publishedAtUtc: dayEnd)); // next Kyiv day — excluded
+                    publishedAtUtc: windowStartUtc.AddHours(-1))); // older than 24h — excluded
                 seed.UserRequests.Add(RequestBuilder.Create(
                     userId: 13,
                     userMessageId: 4,
@@ -86,7 +86,7 @@ namespace FindIFBot.IntegrationTests.Services
             sent.Text.Should().Contain("<pre>");
             sent.Text.Should().Contain("Bot users");
             sent.Text.Should().Contain("Channel subscribers");
-            sent.Text.Should().Contain("Posts today");
+            sent.Text.Should().Contain("Posts last 24h");
             sent.Text.Should().Contain("5,678");
         }
 
