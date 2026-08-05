@@ -113,7 +113,8 @@ namespace FindIFBot.Services
         public async Task SendDailyStatisticsAsync(CancellationToken cancellationToken = default)
         {
             var kyivDate = KyivWorkingHours.GetKyivDate(_timeProvider);
-            var (dayStartUtc, dayEndUtc) = KyivWorkingHours.GetKyivDayUtcRange(kyivDate);
+            var windowEndUtc = _timeProvider.GetUtcNow().UtcDateTime;
+            var windowStartUtc = windowEndUtc.AddHours(-24);
 
             var botUserCount = await _dbContext.UserSessions
                 .AsNoTracking()
@@ -128,8 +129,8 @@ namespace FindIFBot.Services
                 .CountAsync(r =>
                     r.Status == RequestStatus.Approved
                     && r.PublishedAtUtc != null
-                    && r.PublishedAtUtc >= dayStartUtc
-                    && r.PublishedAtUtc < dayEndUtc,
+                    && r.PublishedAtUtc >= windowStartUtc
+                    && r.PublishedAtUtc < windowEndUtc,
                     cancellationToken);
 
             await UpsertDailyStatisticAsync(
@@ -195,7 +196,7 @@ namespace FindIFBot.Services
             sb.AppendLine("----------------------  ------");
             sb.AppendLine($"Bot users               {botUserCount.ToString("N0", CultureInfo.InvariantCulture),6}");
             sb.AppendLine($"Channel subscribers     {channelSubscriberCount.ToString("N0", CultureInfo.InvariantCulture),6}");
-            sb.AppendLine($"Posts today             {postsCount.ToString("N0", CultureInfo.InvariantCulture),6}");
+            sb.AppendLine($"Posts last 24h          {postsCount.ToString("N0", CultureInfo.InvariantCulture),6}");
             sb.Append("</pre>");
             return sb.ToString();
         }
