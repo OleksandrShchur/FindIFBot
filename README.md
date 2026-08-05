@@ -133,7 +133,9 @@ Apply EF Core migrations before first run:
 dotnet ef database update --project FindIFBot/FindIFBot.csproj
 ```
 
-Migrations live in `FindIFBot/Migrations/`. The schema includes user sessions, request history, pending submissions (with `EntitiesJson` for preserved text entities), and admin moderation message references (`AdminInfoMessageId`).
+Migrations live in `FindIFBot/Migrations/`. The schema includes user sessions, request history (with `PublishedAtUtc` for channel publish time), pending submissions (with `EntitiesJson` for preserved text entities), admin moderation message references (`AdminInfoMessageId`), and daily channel statistics (`ChannelDailyStatistics`).
+
+For DB-first / manual SQL Server updates, equivalent scripts live in `FindIFBot/Migrations/Scripts/` (apply the latest script, then keep `__EFMigrationsHistory` in sync).
 
 ## Build and run
 
@@ -184,9 +186,11 @@ The bot is reachable by Telegram through the ngrok tunnel.
 | `POST` | `/api/telegram/webhook` | Telegram update receiver (always returns `200 OK`) |
 | `GET`, `HEAD` | `/api/healthcheck` | Health check |
 | `POST` | `/api/maintenance/process-yesterday-logs` | Upload yesterday's log files to Telegram |
-| `POST` | `/api/maintenance/daily-statistics` | Send daily statistics to Telegram |
+| `POST` | `/api/maintenance/daily-statistics` | Snapshot Kyiv-day channel stats to DB and send a table summary to the logs channel |
 
 Maintenance endpoints require the `X-Maintenance-Key` header matching `Maintenance:SecretKey` and are rate-limited to 5 requests per minute per IP.
+
+`daily-statistics` records one row per Kyiv calendar day (`BotUserCount`, `ChannelSubscriberCount`, `PostsCount`) and upserts on retry. Cron should run late in the Kyiv evening so “posts today” is nearly complete. Channel post views are not tracked (not available via Bot API).
 
 ## CI
 

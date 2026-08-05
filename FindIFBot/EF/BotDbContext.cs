@@ -8,6 +8,7 @@ namespace FindIFBot.EF
         public DbSet<UserSession> UserSessions { get; set; }
         public DbSet<UserRequest> UserRequests { get; set; }
         public DbSet<PendingSubmission> PendingSubmissions { get; set; }
+        public DbSet<ChannelDailyStatistic> ChannelDailyStatistics { get; set; }
 
         public BotDbContext(DbContextOptions<BotDbContext> options)
         : base(options)
@@ -47,11 +48,14 @@ namespace FindIFBot.EF
                 e.Property(e => e.UserMessageId)
                     .IsRequired();
 
+                e.Property(e => e.PublishedAtUtc);
+
                 e.Property(e => e.AdminInfoMessageId);
 
                 e.HasIndex(e => e.UserId);
                 e.HasIndex(e => new { e.UserId, e.SubmittedAt });
                 e.HasIndex(e => e.Status);
+                e.HasIndex(e => new { e.Status, e.PublishedAtUtc });
             });
 
             modelBuilder.Entity<PendingSubmission>(e =>
@@ -65,6 +69,29 @@ namespace FindIFBot.EF
                 e.Property(p => p.CreatedAtUtc).IsRequired();
 
                 e.HasIndex(p => p.CreatedAtUtc);
+            });
+
+            modelBuilder.Entity<ChannelDailyStatistic>(e =>
+            {
+                e.HasKey(s => s.Id);
+
+                e.Property(s => s.Date)
+                    .IsRequired();
+
+                e.Property(s => s.BotUserCount)
+                    .IsRequired();
+
+                e.Property(s => s.ChannelSubscriberCount)
+                    .IsRequired();
+
+                e.Property(s => s.PostsCount)
+                    .IsRequired();
+
+                e.Property(s => s.CreatedAtUtc)
+                    .IsRequired();
+
+                e.HasIndex(s => s.Date)
+                    .IsUnique();
             });
         }
     }

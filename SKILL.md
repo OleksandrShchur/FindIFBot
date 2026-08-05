@@ -102,7 +102,7 @@ From repo root:
 - App logger can forward errors to Telegram logs thread/channel.
 - Maintenance endpoints:
   - `POST /api/maintenance/process-yesterday-logs`
-  - `POST /api/maintenance/daily-statistics`
+  - `POST /api/maintenance/daily-statistics` — upserts Kyiv-day channel stats (`ChannelDailyStatistics`) and sends a monospace table to the logs channel; run cron late Kyiv evening
   - both require `X-Maintenance-Key` and are rate-limited.
 
 ## Quality Checklist For Future Edits

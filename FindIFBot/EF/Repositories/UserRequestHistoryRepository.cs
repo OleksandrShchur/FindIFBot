@@ -74,8 +74,6 @@ namespace FindIFBot.EF.Repositories
             string? channelLink,
             CancellationToken cancellationToken = default)
         {
-            // Single atomic UPDATE ... WHERE Status = expected. At most one concurrent caller
-            // matches, so double-delivered callbacks cannot transition (and therefore act) twice.
             var affected = await _db.UserRequests
                 .Where(r => r.UserId == userId
                             && r.UserMessageId == userMessageId
@@ -99,7 +97,8 @@ namespace FindIFBot.EF.Repositories
                             && r.UserMessageId == userMessageId
                             && r.Status == RequestStatus.Approved)
                 .ExecuteUpdateAsync(setters => setters
-                    .SetProperty(r => r.ChannelLink, channelLink),
+                    .SetProperty(r => r.ChannelLink, channelLink)
+                    .SetProperty(r => r.PublishedAtUtc, DateTime.UtcNow),
                     cancellationToken);
         }
     }
