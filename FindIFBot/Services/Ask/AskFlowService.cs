@@ -21,6 +21,7 @@ namespace FindIFBot.Services.Ask
         private readonly IUserSessionRepository _sessions;
         private readonly IUserRequestHistoryRepository _history;
         private readonly ISubscriptionService _subscriptionService;
+        private readonly IAskUnexpectedErrorNotifier _unexpectedError;
         private readonly IAppLogger<AskFlowService> _logger;
         private readonly TelegramOptions _options;
         private readonly AskHandler _askHandler;
@@ -31,6 +32,7 @@ namespace FindIFBot.Services.Ask
             IUserSessionRepository sessions,
             IUserRequestHistoryRepository history,
             ISubscriptionService subscriptionService,
+            IAskUnexpectedErrorNotifier unexpectedError,
             IAppLogger<AskFlowService> logger,
             IOptions<TelegramOptions> options,
             AskHandler askHandler)
@@ -39,6 +41,7 @@ namespace FindIFBot.Services.Ask
             _sessions = sessions;
             _history = history;
             _subscriptionService = subscriptionService;
+            _unexpectedError = unexpectedError;
             _logger = logger;
             _options = options.Value;
             _askHandler = askHandler;
@@ -46,16 +49,88 @@ namespace FindIFBot.Services.Ask
 
         public async Task HandleCallbackAsync(CallbackQuery callback)
         {
-            await _bot.AnswerCallbackQuery(callback.Id);
-
             var userId = callback.From.Id;
             var chatId = callback.Message?.Chat.Id ?? userId;
-            var session = await _sessions.GetAsync(userId);
 
-            await StartAsync(chatId, userId, session);
+            try
+            {
+                await _bot.AnswerCallbackQuery(callback.Id);
+
+                var session = await _sessions.GetAsync(userId);
+                await StartCoreAsync(chatId, userId, session);
+            }
+            catch (Exception ex)
+            {
+                await _logger.LogError(Component,
+                    $"Unexpected error in HandleCallbackAsync | UserId: {userId} | Error: {ex.Message}");
+                await _unexpectedError.NotifyAsync(chatId, userId);
+            }
         }
 
         public async Task StartAsync(long chatId, long userId, UserSession session)
+        {
+            try
+            {
+                await StartCoreAsync(chatId, userId, session);
+            }
+            catch (Exception ex)
+            {
+                await _logger.LogError(Component,
+                    $"Unexpected error in StartAsync | UserId: {userId} | Error: {ex.Message}");
+                await _unexpectedError.NotifyAsync(chatId, userId);
+            }
+        }
+
+        public async Task ReturnToMainMenuAsync(CallbackQuery callback)
+        {
+            var userId = callback.From.Id;
+            var chatId = callback.Message?.Chat.Id ?? userId;
+
+            try
+            {
+                await _bot.AnswerCallbackQuery(callback.Id);
+
+                var session = await _sessions.GetAsync(userId);
+
+                if (session.State is UserState.WaitingForAskQuery or UserState.ConfirmAskContent)
+                {
+                    session.State = UserState.Idle;
+                    await _sessions.SaveAsync(session);
+                    await _logger.LogInfo(Component, $"User returned to main menu from ask flow | UserId: {userId}");
+                }
+
+                if (callback.Message is { } promptMessage)
+                {
+                    try
+                    {
+                        await _bot.EditMessageReplyMarkup(chatId, promptMessage.Id, replyMarkup: null);
+                    }
+                    catch
+                    {
+                        // Prompt may already have no markup or be too old to edit.
+                    }
+                }
+
+                var hasHistory = await _history.HasHistory(userId);
+                var isAdmin = userId == _options.AdminId;
+
+                await _bot.SendMessage(
+                    chatId,
+                    "🛠 <b>Оберіть опцію, якою хочете скористатися:</b>",
+                    replyMarkup: Keyboards.GetKeyboard(hasHistory, isAdmin),
+                    linkPreviewOptions: NoPreview,
+                    parseMode: ParseMode.Html
+                );
+            }
+            catch (Exception ex)
+            {
+                await _logger.LogError(Component,
+                    $"Unexpected error in ReturnToMainMenuAsync | UserId: {userId} | Error: {ex.Message}");
+                await _unexpectedError.NotifyAsync(chatId, userId);
+            }
+        }
+
+        private async Task StartCoreAsync(long chatId, long userId, UserSession session)
         {
             if (!await _subscriptionService.IsSubscribedToOutputChannelAsync(userId))
             {
@@ -80,45 +155,6 @@ namespace FindIFBot.Services.Ask
                 _askHandler.Handle(),
                 replyMarkup: new InlineKeyboardMarkup(
                     InlineKeyboardButton.WithCallbackData("🏠 Назад у Головне меню", BotCommands.MainMenuCallback)),
-                linkPreviewOptions: NoPreview,
-                parseMode: ParseMode.Html
-            );
-        }
-
-        public async Task ReturnToMainMenuAsync(CallbackQuery callback)
-        {
-            await _bot.AnswerCallbackQuery(callback.Id);
-
-            var userId = callback.From.Id;
-            var chatId = callback.Message?.Chat.Id ?? userId;
-            var session = await _sessions.GetAsync(userId);
-
-            if (session.State is UserState.WaitingForAskQuery or UserState.ConfirmAskContent)
-            {
-                session.State = UserState.Idle;
-                await _sessions.SaveAsync(session);
-                await _logger.LogInfo(Component, $"User returned to main menu from ask flow | UserId: {userId}");
-            }
-
-            if (callback.Message is { } promptMessage)
-            {
-                try
-                {
-                    await _bot.EditMessageReplyMarkup(chatId, promptMessage.Id, replyMarkup: null);
-                }
-                catch
-                {
-                    // Prompt may already have no markup or be too old to edit.
-                }
-            }
-
-            var hasHistory = await _history.HasHistory(userId);
-            var isAdmin = userId == _options.AdminId;
-
-            await _bot.SendMessage(
-                chatId,
-                "🛠 <b>Оберіть опцію, якою хочете скористатися:</b>",
-                replyMarkup: Keyboards.GetKeyboard(hasHistory, isAdmin),
                 linkPreviewOptions: NoPreview,
                 parseMode: ParseMode.Html
             );

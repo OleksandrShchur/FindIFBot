@@ -108,6 +108,7 @@ builder.Services.AddScoped<IAdminRequestNotifier, AdminRequestNotifier>();
 builder.Services.AddScoped<IAdminModerationService, AdminModerationService>();
 builder.Services.AddScoped<ISubscriptionService, TelegramSubscriptionService>();
 builder.Services.AddScoped<IAskFlowService, AskFlowService>();
+builder.Services.AddScoped<IAskUnexpectedErrorNotifier, AskUnexpectedErrorNotifier>();
 builder.Services.AddScoped<ISubmissionValidator, SubmissionValidator>();
 builder.Services.AddScoped<IMessageStorageService, MessageStorageService>();
 builder.Services.AddScoped<IAskConfirmationService, AskConfirmationService>();

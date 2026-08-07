@@ -2,6 +2,7 @@ using FindIFBot.Domain;
 using FindIFBot.EF.Repositories;
 using FindIFBot.Helpers.Logs;
 using FindIFBot.Persistence;
+using FindIFBot.Services.Ask;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 
@@ -17,6 +18,7 @@ namespace FindIFBot.Services.Admin
         private readonly IAdminCallbackParser _parser;
         private readonly ICallbackAuthorizationService _authorization;
         private readonly IAdminModerationService _moderation;
+        private readonly IAskUnexpectedErrorNotifier _unexpectedError;
         private readonly IAppLogger<AdminWorkflowService> _logger;
 
         public AdminWorkflowService(
@@ -26,6 +28,7 @@ namespace FindIFBot.Services.Admin
             IAdminCallbackParser parser,
             ICallbackAuthorizationService authorization,
             IAdminModerationService moderation,
+            IAskUnexpectedErrorNotifier unexpectedError,
             IAppLogger<AdminWorkflowService> logger)
         {
             _bot = bot;
@@ -34,6 +37,7 @@ namespace FindIFBot.Services.Admin
             _parser = parser;
             _authorization = authorization;
             _moderation = moderation;
+            _unexpectedError = unexpectedError;
             _logger = logger;
         }
 
@@ -97,10 +101,7 @@ namespace FindIFBot.Services.Admin
                     await HandleProceedAsync(callback, data, stored);
                     return;
                 case "cancel":
-                    await _logger.LogInfo(Component,
-                        $"User cancelled submission | UserId: {data.UserId} | MessageId: {data.MessageId}");
-                    await _moderation.CancelAskAsync(data.UserId, data.MessageId);
-                    await CleanupAsync(callback, data.MessageId);
+                    await HandleCancelAsync(callback, data);
                     return;
             }
         }
@@ -113,21 +114,51 @@ namespace FindIFBot.Services.Admin
             AdminCallbackData data,
             StoredMessage stored)
         {
-            await _logger.LogInfo(Component,
-                $"User confirmed submission | UserId: {data.UserId} | MessageId: {data.MessageId}");
-
-            await _moderation.SubmitAskAsync(stored, CreateUserInfo(callback.From));
-
-            var session = await _sessions.GetAsync(data.UserId);
-            session.State = UserState.Idle;
-            await _sessions.SaveAsync(session);
+            var chatId = callback.Message?.Chat.Id ?? data.UserId;
 
             try
             {
-                await _bot.DeleteMessage(callback.Message!.Chat.Id, callback.Message.MessageId);
+                await _logger.LogInfo(Component,
+                    $"User confirmed submission | UserId: {data.UserId} | MessageId: {data.MessageId}");
+
+                await _moderation.SubmitAskAsync(stored, CreateUserInfo(callback.From));
+
+                var session = await _sessions.GetAsync(data.UserId);
+                session.State = UserState.Idle;
+                await _sessions.SaveAsync(session);
+
+                try
+                {
+                    await _bot.DeleteMessage(callback.Message!.Chat.Id, callback.Message.MessageId);
+                }
+                catch
+                {
+                }
             }
-            catch
+            catch (Exception ex)
             {
+                await _logger.LogError(Component,
+                    $"Unexpected error on proceed | UserId: {data.UserId} | Error: {ex.Message}");
+                await _unexpectedError.NotifyAsync(chatId, data.UserId);
+            }
+        }
+
+        private async Task HandleCancelAsync(CallbackQuery callback, AdminCallbackData data)
+        {
+            var chatId = callback.Message?.Chat.Id ?? data.UserId;
+
+            try
+            {
+                await _logger.LogInfo(Component,
+                    $"User cancelled submission | UserId: {data.UserId} | MessageId: {data.MessageId}");
+                await _moderation.CancelAskAsync(data.UserId, data.MessageId);
+                await CleanupAsync(callback, data.MessageId);
+            }
+            catch (Exception ex)
+            {
+                await _logger.LogError(Component,
+                    $"Unexpected error on cancel | UserId: {data.UserId} | Error: {ex.Message}");
+                await _unexpectedError.NotifyAsync(chatId, data.UserId);
             }
         }
 
