@@ -186,11 +186,11 @@ The bot is reachable by Telegram through the ngrok tunnel.
 | `POST` | `/api/telegram/webhook` | Telegram update receiver (always returns `200 OK`) |
 | `GET`, `HEAD` | `/api/healthcheck` | Health check |
 | `POST` | `/api/maintenance/process-yesterday-logs` | Upload yesterday's log files to Telegram |
-| `POST` | `/api/maintenance/daily-statistics` | Snapshot Kyiv-day channel stats to DB and send a table summary to the logs channel |
+| `POST` | `/api/maintenance/daily-statistics` | Snapshot channel stats to DB and send a table summary to the logs channel |
 
 Maintenance endpoints require the `X-Maintenance-Key` header matching `Maintenance:SecretKey` and are rate-limited to 5 requests per minute per IP.
 
-`daily-statistics` records one row per Kyiv calendar day (`BotUserCount`, `ChannelSubscriberCount`, `PostsCount`) and upserts on retry. Cron should run late in the Kyiv evening so “posts today” is nearly complete. Channel post views are not tracked (not available via Bot API).
+`daily-statistics` records one row per Kyiv calendar day and upserts on retry. `BotUserCount` and `ChannelSubscriberCount` are live snapshots at job time; `PostsCount` is the number of approved posts published in the rolling last 24 hours (`UtcNow − 24h` → `UtcNow`). Channel post views are not tracked (not available via Bot API).
 
 ## CI
 
