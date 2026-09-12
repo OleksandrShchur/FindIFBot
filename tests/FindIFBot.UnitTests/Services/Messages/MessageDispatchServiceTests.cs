@@ -29,6 +29,7 @@ namespace FindIFBot.UnitTests.Services.Messages
         private readonly ISubmissionValidator _validator = Substitute.For<ISubmissionValidator>();
         private readonly IAskConfirmationService _confirmation = Substitute.For<IAskConfirmationService>();
         private readonly IAskFlowService _askFlow = Substitute.For<IAskFlowService>();
+        private readonly IAskUnexpectedErrorNotifier _unexpectedError = Substitute.For<IAskUnexpectedErrorNotifier>();
         private readonly IMessageCommandRouter _commandRouter = Substitute.For<IMessageCommandRouter>();
         private readonly IAppLogger<MessageDispatchService> _logger = Substitute.For<IAppLogger<MessageDispatchService>>();
         private readonly StartHandler _startHandler;
@@ -57,6 +58,7 @@ namespace FindIFBot.UnitTests.Services.Messages
                 _validator,
                 _confirmation,
                 _askFlow,
+                _unexpectedError,
                 _commandRouter,
                 telegramOptions,
                 _logger);
@@ -165,6 +167,38 @@ namespace FindIFBot.UnitTests.Services.Messages
 
             await _commandRouter.Received(1).RouteAsync(message, "random text");
             await _askFlow.DidNotReceiveWithAnyArgs().StartAsync(default, default, default!);
+            await _confirmation.DidNotReceiveWithAnyArgs().SendConfirmationAsync(default!, default!);
+        }
+
+        [Fact]
+        public async Task Given_WaitingForAskQuery_When_ConfirmationThrows_Then_NotifiesUnexpectedError()
+        {
+            GivenSession(UserState.WaitingForAskQuery);
+            _validator.ValidateSingleMessage(Arg.Any<Message>(), Arg.Any<string?>(), Arg.Any<int>())
+                .Returns(SubmissionValidationResult.Valid());
+            _confirmation.SendConfirmationAsync(Arg.Any<Message>(), Arg.Any<UserSession>())
+                .Returns<Task>(_ => throw new InvalidOperationException("confirm failed"));
+            var message = TelegramBuilder.TextMessage("my real request", userId: UserId, chatId: 200);
+
+            await _sut.HandleAsync(message);
+
+            await _unexpectedError.Received(1).NotifyAsync(200, UserId);
+            await _logger.Received().LogError("MessageDispatch", Arg.Is<string>(m => m.Contains("ask submission")));
+        }
+
+        [Fact]
+        public async Task Given_WaitingForAskQuery_When_StorageThrows_Then_NotifiesUnexpectedError()
+        {
+            GivenSession(UserState.WaitingForAskQuery);
+            _validator.ValidateSingleMessage(Arg.Any<Message>(), Arg.Any<string?>(), Arg.Any<int>())
+                .Returns(SubmissionValidationResult.Valid());
+            _storage.StoreSingleAsync(Arg.Any<Message>(), Arg.Any<string?>(), Arg.Any<IReadOnlyList<string>>())
+                .Returns<StoredMessage>(_ => throw new InvalidOperationException("store failed"));
+            var message = TelegramBuilder.TextMessage("my real request", userId: UserId, chatId: 200);
+
+            await _sut.HandleAsync(message);
+
+            await _unexpectedError.Received(1).NotifyAsync(200, UserId);
             await _confirmation.DidNotReceiveWithAnyArgs().SendConfirmationAsync(default!, default!);
         }
 

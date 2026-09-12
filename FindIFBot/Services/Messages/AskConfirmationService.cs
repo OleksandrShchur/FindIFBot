@@ -3,6 +3,7 @@ using FindIFBot.EF.Entities;
 using FindIFBot.EF.Repositories;
 using FindIFBot.Helpers.Logs;
 using FindIFBot.Persistence;
+using FindIFBot.Services.Ask;
 using FindIFBot.Utils;
 using Telegram.Bot;
 using Telegram.Bot.Types;
@@ -18,6 +19,7 @@ namespace FindIFBot.Services.Messages
         private readonly ITelegramBotClient _bot;
         private readonly IMessageStore _messages;
         private readonly IUserSessionRepository _sessions;
+        private readonly IAskUnexpectedErrorNotifier _unexpectedError;
         private readonly IAppLogger<AskConfirmationService> _logger;
         private static readonly LinkPreviewOptions NoPreview = new() { IsDisabled = true };
 
@@ -25,11 +27,13 @@ namespace FindIFBot.Services.Messages
             ITelegramBotClient bot,
             IMessageStore messages,
             IUserSessionRepository sessions,
+            IAskUnexpectedErrorNotifier unexpectedError,
             IAppLogger<AskConfirmationService> logger)
         {
             _bot = bot;
             _messages = messages;
             _sessions = sessions;
+            _unexpectedError = unexpectedError;
             _logger = logger;
         }
 
@@ -42,6 +46,7 @@ namespace FindIFBot.Services.Messages
             {
                 await _logger.LogError(Component,
                     $"Stored message not found for confirmation | UserId: {message.From!.Id} | MessageId: {message.MessageId}");
+                await _unexpectedError.NotifyAsync(message.Chat.Id, message.From!.Id);
                 return;
             }
 

@@ -1,5 +1,6 @@
 using FindIFBot.EF.Repositories;
 using FindIFBot.Helpers.Logs;
+using FindIFBot.Services.Ask;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace FindIFBot.Services.Messages
@@ -95,11 +96,28 @@ namespace FindIFBot.Services.Messages
             {
                 await _logger.LogError(Component,
                     $"Media group processing timed out after {ProcessingTimeout.TotalSeconds}s | user={item.UserId} | groupId={item.MediaGroupId}");
+                await NotifyUnexpectedErrorAsync(item.UserId);
             }
             catch (Exception ex)
             {
                 await _logger.LogError(Component,
                     $"Media group processing failed | user={item.UserId} | ex={ex.Message}\n{ex.StackTrace}");
+                await NotifyUnexpectedErrorAsync(item.UserId);
+            }
+        }
+
+        private async Task NotifyUnexpectedErrorAsync(long userId)
+        {
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var notifier = scope.ServiceProvider.GetRequiredService<IAskUnexpectedErrorNotifier>();
+                await notifier.NotifyAsync(userId, userId);
+            }
+            catch (Exception ex)
+            {
+                await _logger.LogError(Component,
+                    $"Failed to notify user after media group error | user={userId} | Error: {ex.Message}");
             }
         }
     }

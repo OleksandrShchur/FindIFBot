@@ -26,6 +26,7 @@ namespace FindIFBot.UnitTests.Services.Ask
         private readonly IUserSessionRepository _sessions = Substitute.For<IUserSessionRepository>();
         private readonly IUserRequestHistoryRepository _history = Substitute.For<IUserRequestHistoryRepository>();
         private readonly ISubscriptionService _subscription = Substitute.For<ISubscriptionService>();
+        private readonly IAskUnexpectedErrorNotifier _unexpectedError = Substitute.For<IAskUnexpectedErrorNotifier>();
         private readonly IAppLogger<AskFlowService> _logger = Substitute.For<IAppLogger<AskFlowService>>();
         private readonly AskFlowService _sut;
 
@@ -46,6 +47,7 @@ namespace FindIFBot.UnitTests.Services.Ask
                 _sessions,
                 _history,
                 _subscription,
+                _unexpectedError,
                 _logger,
                 telegramOptions,
                 askHandler);
@@ -163,6 +165,40 @@ namespace FindIFBot.UnitTests.Services.Ask
             var menu = _bot.SingleRequest<SendMessageRequest>();
             menu.Text.Should().Contain("Оберіть опцію");
             menu.ReplyMarkup.Should().BeOfType<ReplyKeyboardMarkup>();
+        }
+
+        [Fact]
+        public async Task Given_SendMessageThrows_When_StartAsync_Then_NotifiesUnexpectedError()
+        {
+            var session = new UserSession { UserId = UserId, State = UserState.Idle };
+            _subscription.IsSubscribedToOutputChannelAsync(UserId).Returns(true);
+            _bot.SendRequest(Arg.Any<SendMessageRequest>(), Arg.Any<CancellationToken>())
+                .Returns<Message>(_ => throw new InvalidOperationException("telegram down"));
+
+            await _sut.StartAsync(ChatId, UserId, session);
+
+            await _unexpectedError.Received(1).NotifyAsync(ChatId, UserId);
+            await _logger.Received().LogError("AskFlow", Arg.Is<string>(m => m.Contains("StartAsync")));
+        }
+
+        [Fact]
+        public async Task Given_SendMessageThrows_When_ReturnToMainMenu_Then_NotifiesUnexpectedError()
+        {
+            var session = new UserSession { UserId = UserId, State = UserState.WaitingForAskQuery };
+            _sessions.GetAsync(UserId).Returns(session);
+            _history.HasHistory(UserId).Returns(false);
+            _bot.SendRequest(Arg.Any<SendMessageRequest>(), Arg.Any<CancellationToken>())
+                .Returns<Message>(_ => throw new InvalidOperationException("telegram down"));
+
+            var callback = TelegramBuilder.CallbackQuery(
+                BotCommands.MainMenuCallback,
+                userId: UserId,
+                chatId: ChatId);
+
+            await _sut.ReturnToMainMenuAsync(callback);
+
+            await _unexpectedError.Received(1).NotifyAsync(ChatId, UserId);
+            await _logger.Received().LogError("AskFlow", Arg.Is<string>(m => m.Contains("ReturnToMainMenuAsync")));
         }
     }
 }

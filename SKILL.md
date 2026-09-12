@@ -69,6 +69,11 @@ Maintenance config:
 - Keep ask flow state transitions explicit and session writes consistent.
 - Do not bypass validation for ask submissions (text/photo limits and media checks).
 
+## Versioning
+- Bot build number lives in `FindIFBot/Helpers/BotVersion.cs` (`BotVersion.Current`).
+- On every new git branch, increment `BotVersion.Current` by 1 as the first change on that branch.
+- Do not leave a feature/fix branch without a version bump; `/version` must reflect the new build.
+
 ## Common Change Patterns
 - Add new user command:
   1. Add handler (or service-backed handler).
@@ -107,6 +112,7 @@ From repo root:
 
 ## Quality Checklist For Future Edits
 - Build succeeds with no new warnings/errors.
+- New branch includes an incremented `BotVersion.Current`.
 - New DI registrations are complete and correct lifetimes are used.
 - State machine transitions are valid for each message/callback path.
 - Telegram parse mode/markup combinations are valid.

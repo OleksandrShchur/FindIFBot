@@ -27,6 +27,7 @@ namespace FindIFBot.Services.Messages
         private readonly ISubmissionValidator _validator;
         private readonly IAskConfirmationService _confirmation;
         private readonly IAskFlowService _askFlow;
+        private readonly IAskUnexpectedErrorNotifier _unexpectedError;
         private readonly IMessageCommandRouter _commandRouter;
         private readonly TelegramOptions _telegram;
         private readonly IAppLogger<MessageDispatchService> _logger;
@@ -41,6 +42,7 @@ namespace FindIFBot.Services.Messages
             ISubmissionValidator validator,
             IAskConfirmationService confirmation,
             IAskFlowService askFlow,
+            IAskUnexpectedErrorNotifier unexpectedError,
             IMessageCommandRouter commandRouter,
             IOptions<TelegramOptions> telegram,
             IAppLogger<MessageDispatchService> logger)
@@ -54,6 +56,7 @@ namespace FindIFBot.Services.Messages
             _validator = validator;
             _confirmation = confirmation;
             _askFlow = askFlow;
+            _unexpectedError = unexpectedError;
             _commandRouter = commandRouter;
             _telegram = telegram.Value;
             _logger = logger;
@@ -95,12 +98,30 @@ namespace FindIFBot.Services.Messages
 
             if (session.State == UserState.WaitingForAskQuery)
             {
-                var validation = _validator.ValidateSingleMessage(message, text, photos.Count);
-                if (!validation.IsValid)
+                try
                 {
-                    await SendValidationErrorAsync(message, session, validation.ErrorMessage!, hasHistory);
-                    return;
+                    var validation = _validator.ValidateSingleMessage(message, text, photos.Count);
+                    if (!validation.IsValid)
+                    {
+                        await SendValidationErrorAsync(message, session, validation.ErrorMessage!, hasHistory);
+                        return;
+                    }
+
+                    var storedAsk = await _storage.StoreSingleAsync(message, text, photos);
+
+                    await _logger.LogInfo(Component,
+                        $"Stored single message | UserId: {userId} | MessageId: {storedAsk.MessageId} | Photos: {photos.Count} | TextLength: {(text?.Length ?? 0)}");
+
+                    await _confirmation.SendConfirmationAsync(message, session);
                 }
+                catch (Exception ex)
+                {
+                    await _logger.LogError(Component,
+                        $"Unexpected error during ask submission | UserId: {userId} | Error: {ex.Message}");
+                    await _unexpectedError.NotifyAsync(message.Chat.Id, userId);
+                }
+
+                return;
             }
 
             var stored = await _storage.StoreSingleAsync(message, text, photos);
@@ -116,14 +137,9 @@ namespace FindIFBot.Services.Messages
                 return;
             }
 
-            if (session.State == UserState.WaitingForAskQuery)
-            {
-                await _confirmation.SendConfirmationAsync(message, session);
-                return;
-            }
-
             if (BotCommands.IsAsk(normalized))
             {
+                // AskFlowService owns its own unexpected-error handling.
                 await _askFlow.StartAsync(message.Chat.Id, userId, session);
                 return;
             }
