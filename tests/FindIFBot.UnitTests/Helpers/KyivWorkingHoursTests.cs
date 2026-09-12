@@ -8,11 +8,11 @@ namespace FindIFBot.UnitTests.Helpers
         private readonly KyivWorkingHours _sut = KyivWorkingHours.CreateDefault();
 
         [Theory]
-        [InlineData(8, 59, false)]
-        [InlineData(9, 0, true)]
+        [InlineData(7, 59, false)]
+        [InlineData(8, 0, true)]
         [InlineData(12, 0, true)]
-        [InlineData(21, 59, true)]
-        [InlineData(22, 0, false)]
+        [InlineData(20, 59, true)]
+        [InlineData(21, 0, false)]
         [InlineData(23, 30, false)]
         [InlineData(0, 0, false)]
         public void IsWorkingHours_UsesKyivLocalTimeBoundaries(int hour, int minute, bool expected)

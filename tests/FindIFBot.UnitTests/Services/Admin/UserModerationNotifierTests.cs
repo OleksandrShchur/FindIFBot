@@ -54,7 +54,7 @@ namespace FindIFBot.UnitTests.Services.Admin
             sent.ChatId.Identifier.Should().Be(UserId);
             sent.ParseMode.Should().Be(ParseMode.Html);
             sent.Text.Should().Contain("Запит відправлено на модерацію");
-            sent.Text.Should().Contain("робочі години — з 9:00 до 22:00");
+            sent.Text.Should().Contain("робочі години — з 8:00 до 21:00");
             sent.Text.Should().Contain("київським часом");
             sent.Text.Should().NotContain("наші модератори скоро перевірять ваш допис");
             sent.Text.Should().Contain($"🆔 <b>ID запиту:</b> #<code>{MessageId}</code>");
