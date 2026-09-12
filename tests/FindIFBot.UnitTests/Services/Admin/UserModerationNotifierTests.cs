@@ -1,5 +1,6 @@
 using FindIFBot.Configuration;
 using FindIFBot.EF.Repositories;
+using FindIFBot.Helpers;
 using FindIFBot.Services.Admin;
 using FindIFBot.UnitTests.TestSupport;
 using Microsoft.Extensions.Options;
@@ -22,7 +23,8 @@ namespace FindIFBot.UnitTests.Services.Admin
         private UserModerationNotifier CreateSut(TimeProvider timeProvider)
         {
             var options = Options.Create(new TelegramOptions { DirectChatLink = DirectLink });
-            return new UserModerationNotifier(_bot, _history, options, timeProvider);
+            return new UserModerationNotifier(
+                _bot, _history, options, timeProvider, KyivWorkingHours.CreateDefault());
         }
 
         [Fact]
