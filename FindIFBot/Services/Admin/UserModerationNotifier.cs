@@ -15,26 +15,28 @@ namespace FindIFBot.Services.Admin
         private readonly IUserRequestHistoryRepository _history;
         private readonly TelegramOptions _options;
         private readonly TimeProvider _timeProvider;
+        private readonly IWorkingHours _workingHours;
         private static readonly LinkPreviewOptions NoPreview = new() { IsDisabled = true };
 
         public UserModerationNotifier(
             ITelegramBotClient bot,
             IUserRequestHistoryRepository history,
             IOptions<TelegramOptions> options,
-            TimeProvider timeProvider)
+            TimeProvider timeProvider,
+            IWorkingHours workingHours)
         {
             _bot = bot;
             _history = history;
             _options = options.Value;
             _timeProvider = timeProvider;
+            _workingHours = workingHours;
         }
 
         public async Task NotifySubmittedAsync(long chatId, int requestId)
         {
-            var body = KyivWorkingHours.IsWorkingHours(_timeProvider)
+            var body = _workingHours.IsWorkingHours(_timeProvider)
                 ? "Очікуйте, будь ласка — наші модератори скоро перевірять ваш допис.\n\n"
-                : "Ваш запит буде розглянуто адміністраторами в робочі години — з 9:00 до 22:00 (за київським часом).\n\n";
-
+                : $"Ваш запит буде розглянуто адміністраторами в робочі години — з {_workingHours.StartHour}:00 до {_workingHours.EndHour}:00 (за київським часом).\n\n";
             await _bot.SendMessage(
                 chatId,
                 "⏳ <b>Запит відправлено на модерацію!</b>\n\n" +

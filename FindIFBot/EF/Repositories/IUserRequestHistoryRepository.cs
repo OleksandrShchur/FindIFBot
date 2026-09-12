@@ -22,6 +22,14 @@ namespace FindIFBot.EF.Repositories
         Task<List<UserRequest>> GetPendingAsync(int limit);
 
         /// <summary>
+        /// Returns the oldest pending request across all users, or null when the queue is empty.
+        /// </summary>
+        Task<UserRequest?> GetOldestPendingAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>Returns true when at least one request is still pending.</summary>
+        Task<bool> HasPendingAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Atomically transitions a request from <paramref name="expectedStatus"/> to
         /// <paramref name="newStatus"/> in a single SQL UPDATE. Returns true only if exactly this
         /// caller performed the transition, providing idempotency for double-delivered callbacks.

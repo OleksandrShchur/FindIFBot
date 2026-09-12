@@ -3,6 +3,7 @@ using FindIFBot.Configuration;
 using FindIFBot.EF;
 using FindIFBot.EF.Repositories;
 using FindIFBot.Handlers;
+using FindIFBot.Helpers;
 using FindIFBot.Helpers.Logs;
 using FindIFBot.Persistence;
 using FindIFBot.Services;
@@ -31,6 +32,9 @@ builder.Services.Configure<MaintenanceOptions>(builder.Configuration.GetSection(
 
 builder.Services.Configure<SubmissionOptions>(builder.Configuration.GetSection(SubmissionOptions.SectionName));
 builder.Services.Configure<HistoryOptions>(builder.Configuration.GetSection(HistoryOptions.SectionName));
+builder.Services.Configure<ReminderOptions>(builder.Configuration.GetSection(ReminderOptions.SectionName));
+builder.Services.Configure<WorkingHoursOptions>(builder.Configuration.GetSection(WorkingHoursOptions.SectionName));
+builder.Services.AddSingleton<IWorkingHours, KyivWorkingHours>();
 
 builder.Services.AddRateLimiter(options =>
 {
@@ -94,6 +98,9 @@ builder.Services.AddDbContext<BotDbContext>(options =>
 // Repositories
 builder.Services.AddScoped<IUserSessionRepository, UserSessionRepository>();
 builder.Services.AddScoped<IUserRequestHistoryRepository, UserRequestHistoryRepository>();
+builder.Services.AddScoped<IAdminQueueReminderStateRepository, AdminQueueReminderStateRepository>();
+builder.Services.AddScoped<IAdminQueueReminderScheduler, AdminQueueReminderScheduler>();
+builder.Services.AddScoped<IAdminQueueReminderService, AdminQueueReminderService>();
 
 // Handlers / workflows
 builder.Services.AddScoped<IMaintenanceService, MaintenanceService>();
@@ -137,6 +144,7 @@ builder.Services.AddScoped<IMessageStore, DbMessageStore>();
 // Media group queue + hosted processor (replaces fire-and-forget Task.Run)
 builder.Services.AddSingleton<IMediaGroupQueue, MediaGroupQueue>();
 builder.Services.AddHostedService<MediaGroupProcessor>();
+builder.Services.AddHostedService<AdminQueueReminderProcessor>();
 
 // OpenAPI
 builder.Services.AddOpenApi();

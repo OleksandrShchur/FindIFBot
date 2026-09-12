@@ -21,6 +21,7 @@ namespace FindIFBot.Services
         private readonly TelegramOptions _telegramOptions;
         private readonly BotDbContext _dbContext;
         private readonly TimeProvider _timeProvider;
+        private readonly IWorkingHours _workingHours;
         private static readonly LinkPreviewOptions NoPreview = new() { IsDisabled = true };
 
         public MaintenanceService(ILogger<MaintenanceService> logger,
@@ -28,7 +29,8 @@ namespace FindIFBot.Services
             ITelegramBotClient botClient,
             IOptions<TelegramOptions> telegramOptions,
             BotDbContext dbContext,
-            TimeProvider? timeProvider = null)
+            TimeProvider? timeProvider = null,
+            IWorkingHours? workingHours = null)
         {
             _logger = logger;
             _environment = environment;
@@ -36,6 +38,7 @@ namespace FindIFBot.Services
             _telegramOptions = telegramOptions.Value;
             _dbContext = dbContext;
             _timeProvider = timeProvider ?? TimeProvider.System;
+            _workingHours = workingHours ?? KyivWorkingHours.CreateDefault();
         }
 
         public async Task ProcessYesterdayLogsAsync(CancellationToken cancellationToken = default)
@@ -112,7 +115,7 @@ namespace FindIFBot.Services
 
         public async Task SendDailyStatisticsAsync(CancellationToken cancellationToken = default)
         {
-            var kyivDate = KyivWorkingHours.GetKyivDate(_timeProvider);
+            var kyivDate = _workingHours.GetLocalDate(_timeProvider);
             var windowEndUtc = _timeProvider.GetUtcNow().UtcDateTime;
             var windowStartUtc = windowEndUtc.AddHours(-24);
 

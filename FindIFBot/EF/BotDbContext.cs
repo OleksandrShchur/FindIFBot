@@ -9,6 +9,7 @@ namespace FindIFBot.EF
         public DbSet<UserRequest> UserRequests { get; set; }
         public DbSet<PendingSubmission> PendingSubmissions { get; set; }
         public DbSet<ChannelDailyStatistic> ChannelDailyStatistics { get; set; }
+        public DbSet<AdminQueueReminderState> AdminQueueReminderStates { get; set; }
 
         public BotDbContext(DbContextOptions<BotDbContext> options)
         : base(options)
@@ -92,6 +93,14 @@ namespace FindIFBot.EF
 
                 e.HasIndex(s => s.Date)
                     .IsUnique();
+            });
+
+            modelBuilder.Entity<AdminQueueReminderState>(e =>
+            {
+                e.HasKey(s => s.Id);
+                e.Property(s => s.Id).ValueGeneratedNever();
+                e.Property(s => s.DueAtUtc);
+                e.Property(s => s.LastSentAtUtc);
             });
         }
     }

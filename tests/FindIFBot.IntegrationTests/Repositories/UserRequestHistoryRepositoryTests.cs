@@ -176,5 +176,36 @@ namespace FindIFBot.IntegrationTests.Repositories
                 1011, 1010, 1009, 1008, 1007, 1006, 1005, 1004, 1003, 1002);
             result.Should().OnlyContain(r => r.AdminInfoMessageId != null);
         }
+
+        [Fact]
+        public async Task Given_MultiplePending_When_GetOldestPending_Then_ReturnsEarliestSubmitted()
+        {
+            using var db = new SqliteTestDatabase();
+            var baseTime = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+            await new UserRequestHistoryRepository(db.CreateContext()).Add(
+                RequestBuilder.Create(userMessageId: 2, status: RequestStatus.Pending, submittedAt: baseTime.AddHours(2)));
+            await new UserRequestHistoryRepository(db.CreateContext()).Add(
+                RequestBuilder.Create(userMessageId: 1, status: RequestStatus.Pending, submittedAt: baseTime));
+            await new UserRequestHistoryRepository(db.CreateContext()).Add(
+                RequestBuilder.Create(userMessageId: 3, status: RequestStatus.Approved, submittedAt: baseTime.AddHours(-1)));
+
+            var oldest = await new UserRequestHistoryRepository(db.CreateContext()).GetOldestPendingAsync();
+
+            oldest.Should().NotBeNull();
+            oldest!.UserMessageId.Should().Be(1);
+        }
+
+        [Fact]
+        public async Task Given_OnlyApproved_When_HasPending_Then_ReturnsFalse()
+        {
+            using var db = new SqliteTestDatabase();
+            await new UserRequestHistoryRepository(db.CreateContext()).Add(
+                RequestBuilder.Create(status: RequestStatus.Approved));
+
+            var hasPending = await new UserRequestHistoryRepository(db.CreateContext()).HasPendingAsync();
+
+            hasPending.Should().BeFalse();
+        }
     }
 }
