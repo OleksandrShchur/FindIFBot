@@ -104,7 +104,8 @@ namespace FindIFBot.UnitTests.Services.Admin
                 .Returns(new Dictionary<RequestStatus, int>
                 {
                     [RequestStatus.Approved] = 2,
-                    [RequestStatus.Rejected] = 1
+                    [RequestStatus.Rejected] = 1,
+                    [RequestStatus.Sale] = 3
                 });
 
             var stored = new StoredMessage(UserId, UserId, "promo text", [], null, MessageId);
@@ -118,7 +119,8 @@ namespace FindIFBot.UnitTests.Services.Admin
             html.Should().Contain("<tr><td>Pending</td><td>1</td></tr>");
             html.Should().Contain("<tr><td>Approved</td><td>2</td></tr>");
             html.Should().Contain("<tr><td>Rejected</td><td>1</td></tr>");
-            html.Should().Contain("<tr><td><b>Total</b></td><td><b>4</b></td></tr>");
+            html.Should().Contain("<tr><td>Sale</td><td>3</td></tr>");
+            html.Should().Contain("<tr><td><b>Total</b></td><td><b>7</b></td></tr>");
             html.Should().NotContain("Duplicate");
             html.Should().NotContain("Advertisement");
             html.Should().NotContain("NeedsAttention");
@@ -139,6 +141,26 @@ namespace FindIFBot.UnitTests.Services.Admin
             var adsButton = buttons.Should()
                 .ContainSingle(b => b.CallbackData == $"!ask|{UserId}|{MessageId}").Subject;
             adsButton.Text.Should().Contain("Реклама");
+        }
+
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public async Task SendToAdminAsync_IncludesSaleButtonWithCallbackData(bool hasPhotos)
+        {
+            var stored = new StoredMessage(UserId, UserId, "selling goods",
+                hasPhotos ? ["photo-1"] : [], null, MessageId);
+            var userInfo = new UserInfo { Id = UserId };
+
+            await _sut.SendToAdminAsync(stored, userInfo);
+
+            var moderation = ActionsMessage();
+            moderation.ChatId.Identifier.Should().Be(AdminId);
+            var buttons = ((InlineKeyboardMarkup)moderation.ReplyMarkup!)
+                .InlineKeyboard.SelectMany(row => row).ToList();
+            var saleButton = buttons.Should()
+                .ContainSingle(b => b.CallbackData == $"sale|{UserId}|{MessageId}").Subject;
+            saleButton.Text.Should().Be("🛍️ Продаж товарів");
         }
 
         [Fact]

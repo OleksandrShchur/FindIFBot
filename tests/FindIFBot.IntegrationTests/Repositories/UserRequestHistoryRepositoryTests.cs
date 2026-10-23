@@ -104,6 +104,31 @@ namespace FindIFBot.IntegrationTests.Repositories
         }
 
         [Fact]
+        public async Task Given_PendingRequest_When_MarkedAsSale_Then_LeavesQueueAndRetainsSaleHistory()
+        {
+            using var db = new SqliteTestDatabase();
+            var request = RequestBuilder.Create(userId: 100, userMessageId: 5, status: RequestStatus.Pending);
+            await new UserRequestHistoryRepository(db.CreateContext()).Add(request);
+
+            var transitioned = await new UserRequestHistoryRepository(db.CreateContext())
+                .TryTransitionStatusAsync(100, 5, RequestStatus.Pending, RequestStatus.Sale, null);
+
+            transitioned.Should().BeTrue();
+            var repo = new UserRequestHistoryRepository(db.CreateContext());
+            var stored = await repo.GetById(request.Id);
+            stored!.Status.Should().Be(RequestStatus.Sale);
+            stored.ChannelLink.Should().BeNull();
+            stored.PublishedAtUtc.Should().BeNull();
+            (await repo.GetPendingAsync(10)).Should().BeEmpty();
+            (await repo.HasPendingAsync()).Should().BeFalse();
+            (await repo.GetStatusCountsByUserIdAsync(100))[RequestStatus.Sale].Should().Be(1);
+
+            var repeated = await new UserRequestHistoryRepository(db.CreateContext())
+                .TryTransitionStatusAsync(100, 5, RequestStatus.Pending, RequestStatus.Sale, null);
+            repeated.Should().BeFalse();
+        }
+
+        [Fact]
         public async Task Given_NonMatchingStatus_When_TryTransition_Then_FailsAndLeavesUnchanged()
         {
             using var db = new SqliteTestDatabase();

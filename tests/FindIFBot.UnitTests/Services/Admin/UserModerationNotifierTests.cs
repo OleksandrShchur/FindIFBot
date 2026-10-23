@@ -133,6 +133,29 @@ namespace FindIFBot.UnitTests.Services.Admin
         }
 
         [Fact]
+        public async Task NotifySaleAsync_ExplainsPaidPublicationAndLinksToChannelDirectChat()
+        {
+            var sut = CreateSut(TimeProvider.System);
+
+            await sut.NotifySaleAsync(UserId, MessageId);
+
+            var sent = _bot.SingleRequest<SendMessageRequest>();
+            sent.ChatId.Identifier.Should().Be(UserId);
+            sent.ReplyParameters!.MessageId.Should().Be(MessageId);
+            sent.ParseMode.Should().Be(ParseMode.Html);
+            sent.LinkPreviewOptions!.IsDisabled.Should().BeTrue();
+            sent.Text.Should().Contain("Публікація оголошень про продаж товарів у каналі є платною");
+            sent.Text.Should().Contain("вартість та умови розміщення");
+            sent.Text.Should().Contain("напишіть нам у дірект каналу");
+            sent.Text.Should().Contain($"🆔 <b>ID запиту:</b> #<code>{MessageId}</code>");
+
+            var keyboard = sent.ReplyMarkup.Should().BeOfType<InlineKeyboardMarkup>().Subject;
+            var button = keyboard.InlineKeyboard.SelectMany(row => row).Single();
+            button.Text.Should().Be("✍️ Написати в дірект");
+            button.Url.Should().Be(DirectLink);
+        }
+
+        [Fact]
         public async Task NotifyNeedsAttentionAsync_IncludesRequestIdAndDirectChatButton()
         {
             var sut = CreateSut(TimeProvider.System);
