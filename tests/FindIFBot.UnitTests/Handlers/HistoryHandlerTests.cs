@@ -123,6 +123,7 @@ namespace FindIFBot.UnitTests.Handlers
                 .Returns(new Dictionary<RequestStatus, int>
                 {
                     [RequestStatus.NeedsAttention] = 1,
+                    [RequestStatus.Sale] = 1,
                     [RequestStatus.Advertisement] = 1,
                     [RequestStatus.Duplicate] = 1,
                     [RequestStatus.Rejected] = 1,
@@ -139,15 +140,17 @@ namespace FindIFBot.UnitTests.Handlers
             var rejected = html.IndexOf("<tr><td>Відхилені</td><td>1</td></tr>", StringComparison.Ordinal);
             var duplicate = html.IndexOf("<tr><td>Дублікати</td><td>1</td></tr>", StringComparison.Ordinal);
             var ads = html.IndexOf("<tr><td>Реклама</td><td>1</td></tr>", StringComparison.Ordinal);
+            var sale = html.IndexOf("<tr><td>Продаж товарів</td><td>1</td></tr>", StringComparison.Ordinal);
             var attention = html.IndexOf("<tr><td>Уточнення</td><td>1</td></tr>", StringComparison.Ordinal);
-            var total = html.IndexOf("<tr><td><b>Всього</b></td><td><b>6</b></td></tr>", StringComparison.Ordinal);
+            var total = html.IndexOf("<tr><td><b>Всього</b></td><td><b>7</b></td></tr>", StringComparison.Ordinal);
 
             pending.Should().BeGreaterThan(-1);
             approved.Should().BeGreaterThan(pending);
             rejected.Should().BeGreaterThan(approved);
             duplicate.Should().BeGreaterThan(rejected);
             ads.Should().BeGreaterThan(duplicate);
-            attention.Should().BeGreaterThan(ads);
+            sale.Should().BeGreaterThan(ads);
+            attention.Should().BeGreaterThan(sale);
             total.Should().BeGreaterThan(attention);
         }
 

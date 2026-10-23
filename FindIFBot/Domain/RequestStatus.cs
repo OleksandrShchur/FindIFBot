@@ -7,6 +7,7 @@
         Rejected,
         Duplicate,
         Advertisement,
-        NeedsAttention
+        NeedsAttention,
+        Sale
     }
 }

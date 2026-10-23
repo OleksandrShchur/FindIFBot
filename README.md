@@ -14,7 +14,8 @@ Built on **ASP.NET Core 9** with a webhook-based update pipeline, **Entity Frame
 - **Channel subscription check** — users must subscribe to the output channel before starting the ask flow
 - **Request IDs** — every submission gets a stable ID shown to the user and to admins across moderation messages
 - **Working hours messaging** — after submit, users see an immediate-review note during Kyiv 09:00–22:00, or an off-hours notice outside that window
-- **Admin moderation** — action buttons live on a separate message; approve, reject, duplicate, ads, or needs-attention; approved posts are published to the channel
+- **Admin moderation** — action buttons live on a separate message; approve, reject, duplicate, ads, goods for sale, or needs-attention; approved posts are published to the channel
+- **Paid sale notices** — admins can mark a request as goods for sale; the author receives a payment-policy notice with the same direct-chat button used for ads, and the request leaves the moderation queue with a separate sale status in history
 - **Admin context tables** — each moderation thread includes user profile and per-user request status counts (HTML tables)
 - **Moderation queue** — admins can list pending submissions with links back to the original moderation thread (`/pending`)
 - **Request history** — users see a status-count summary plus past submissions grouped by status (`/history`)
