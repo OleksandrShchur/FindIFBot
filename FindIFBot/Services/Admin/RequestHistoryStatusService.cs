@@ -10,13 +10,16 @@ namespace FindIFBot.Services.Admin
         private const string Component = "RequestHistory";
 
         private readonly IUserRequestHistoryRepository _history;
+        private readonly IAdminQueueReminderScheduler _reminderScheduler;
         private readonly IAppLogger<RequestHistoryStatusService> _logger;
 
         public RequestHistoryStatusService(
             IUserRequestHistoryRepository history,
+            IAdminQueueReminderScheduler reminderScheduler,
             IAppLogger<RequestHistoryStatusService> logger)
         {
             _history = history;
+            _reminderScheduler = reminderScheduler;
             _logger = logger;
         }
 
@@ -33,6 +36,7 @@ namespace FindIFBot.Services.Admin
             };
 
             await _history.Add(request);
+            await _reminderScheduler.OnPendingAddedAsync();
         }
 
         public async Task<bool> TryTransitionAsync(long userId, int userMessageId, RequestStatus status, string? channelLink = null)
@@ -46,6 +50,8 @@ namespace FindIFBot.Services.Admin
                     $"No pending request to transition (already moderated?) | UserId: {userId} | MessageId: {userMessageId} | Target: {status}");
                 return false;
             }
+
+            await _reminderScheduler.OnPendingLeftAsync(wasApproved: status == RequestStatus.Approved);
 
             await _logger.LogInfo(Component,
                 $"History updated to {status.ToString().ToUpperInvariant()} | UserId: {userId} | MessageId: {userMessageId}");

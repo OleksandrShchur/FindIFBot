@@ -22,6 +22,22 @@ namespace FindIFBot.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("FindIFBot.EF.Entities.AdminQueueReminderState", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("DueAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("LastSentAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("AdminQueueReminderStates");
+                });
+
             modelBuilder.Entity("FindIFBot.EF.Entities.ChannelDailyStatistic", b =>
                 {
                     b.Property<int>("Id")

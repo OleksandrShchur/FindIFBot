@@ -66,6 +66,22 @@ namespace FindIFBot.EF.Repositories
                 .ToListAsync();
         }
 
+        public async Task<UserRequest?> GetOldestPendingAsync(CancellationToken cancellationToken = default)
+        {
+            return await _db.UserRequests
+                .AsNoTracking()
+                .Where(r => r.Status == RequestStatus.Pending)
+                .OrderBy(r => r.SubmittedAt)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+
+        public async Task<bool> HasPendingAsync(CancellationToken cancellationToken = default)
+        {
+            return await _db.UserRequests
+                .AsNoTracking()
+                .AnyAsync(r => r.Status == RequestStatus.Pending, cancellationToken);
+        }
+
         public async Task<bool> TryTransitionStatusAsync(
             long userId,
             int userMessageId,

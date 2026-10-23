@@ -1,5 +1,6 @@
 using FindIFBot.Configuration;
 using FindIFBot.EF.Repositories;
+using FindIFBot.Helpers;
 using FindIFBot.Services.Admin;
 using FindIFBot.UnitTests.TestSupport;
 using Microsoft.Extensions.Options;
@@ -22,7 +23,8 @@ namespace FindIFBot.UnitTests.Services.Admin
         private UserModerationNotifier CreateSut(TimeProvider timeProvider)
         {
             var options = Options.Create(new TelegramOptions { DirectChatLink = DirectLink });
-            return new UserModerationNotifier(_bot, _history, options, timeProvider);
+            return new UserModerationNotifier(
+                _bot, _history, options, timeProvider, KyivWorkingHours.CreateDefault());
         }
 
         [Fact]
@@ -52,7 +54,7 @@ namespace FindIFBot.UnitTests.Services.Admin
             sent.ChatId.Identifier.Should().Be(UserId);
             sent.ParseMode.Should().Be(ParseMode.Html);
             sent.Text.Should().Contain("Запит відправлено на модерацію");
-            sent.Text.Should().Contain("робочі години — з 9:00 до 22:00");
+            sent.Text.Should().Contain("робочі години — з 8:00 до 21:00");
             sent.Text.Should().Contain("київським часом");
             sent.Text.Should().NotContain("наші модератори скоро перевірять ваш допис");
             sent.Text.Should().Contain($"🆔 <b>ID запиту:</b> #<code>{MessageId}</code>");
