@@ -114,6 +114,27 @@ namespace FindIFBot.Services.Admin
             );
         }
 
+        public async Task NotifySaleAsync(long userId, int messageId)
+        {
+            var keyboard = new InlineKeyboardMarkup(
+                InlineKeyboardButton.WithUrl("✍️ Написати в дірект", _options.DirectChatLink));
+
+            await _bot.SendMessage(
+                userId,
+                "🛍️ <b>Продаж товарів у каналі</b>\n\n" +
+                "Дякуємо за ваш допис! Бачимо, що ви хочете запропонувати товар нашій спільноті. " +
+                "<b>Публікація оголошень про продаж товарів у каналі є платною.</b>\n\n" +
+                "Щоб дізнатися вартість та умови розміщення, напишіть нам у дірект каналу — " +
+                "з радістю розповімо всі деталі та допоможемо узгодити публікацію 🤝\n\n" +
+                "👇 Натисніть кнопку нижче, щоб зв’язатися з нами:\n\n" +
+                $"🆔 <b>ID запиту:</b> #<code>{messageId}</code>",
+                replyParameters: new ReplyParameters { MessageId = messageId },
+                replyMarkup: keyboard,
+                linkPreviewOptions: NoPreview,
+                parseMode: ParseMode.Html
+            );
+        }
+
         public async Task NotifyNeedsAttentionAsync(long userId, int messageId)
         {
             var keyboard = new InlineKeyboardMarkup(

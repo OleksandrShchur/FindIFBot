@@ -21,6 +21,7 @@ namespace FindIFBot.Services.Admin
             RequestStatus.Rejected,
             RequestStatus.Duplicate,
             RequestStatus.Advertisement,
+            RequestStatus.Sale,
             RequestStatus.NeedsAttention
         ];
 
@@ -63,6 +64,7 @@ namespace FindIFBot.Services.Admin
                 },
                 new[]
                 {
+                    InlineKeyboardButton.WithCallbackData("🛍️ Продаж товарів", $"sale|{stored.UserId}|{stored.MessageId}"),
                     InlineKeyboardButton.WithCallbackData("💬 Уточнити", $"*ask|{stored.UserId}|{stored.MessageId}")
                 }
             });
