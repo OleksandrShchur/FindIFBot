@@ -4,7 +4,7 @@
 
 Telegram bot for the **«Франківськ Питає»** community channel. Users submit publication requests through the bot; moderators review and approve them before they are posted to the channel.
 
-Built on **ASP.NET Core 9** with a webhook-based update pipeline, **Entity Framework Core** persistence, and an admin moderation workflow.
+Built on **ASP.NET Core 10** with a webhook-based update pipeline, **Entity Framework Core** persistence, and an admin moderation workflow.
 
 ## Features
 
@@ -44,9 +44,9 @@ Commands are also available via Ukrainian reply-keyboard buttons (except `/versi
 
 ## Tech stack
 
-- .NET 9 SDK (pinned in `global.json`, currently **9.0.316**) / ASP.NET Core Web API
+- .NET 10 SDK (pinned in `global.json`, currently **10.0.403**) / ASP.NET Core Web API
 - [Telegram.Bot](https://github.com/TelegramBots/Telegram.Bot) **22.10.2.1**
-- Entity Framework Core **9.0.12** + SQL Server
+- Entity Framework Core **10.0.14** + SQL Server
 - Serilog (rolling daily file logs, 10-day retention)
 - Built-in ASP.NET Core rate limiting (50 requests / 10 s globally; 5 / min on maintenance endpoints)
 - xUnit, NSubstitute, FluentAssertions, `Microsoft.AspNetCore.Mvc.Testing` (tests)
@@ -74,7 +74,7 @@ FindIFBot/
 
 ## Prerequisites
 
-- [.NET 9 SDK](https://dotnet.microsoft.com/download)
+- [.NET 10 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/10.0)
 - SQL Server (local or remote)
 - Telegram Bot Token ([BotFather](https://t.me/BotFather))
 - [ngrok](https://ngrok.com/) (for local webhook development)
