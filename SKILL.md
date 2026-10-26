@@ -9,7 +9,7 @@ summary: Guidance for making safe, consistent changes in FindIFBot (ASP.NET Core
 Maintain and extend FindIFBot as a webhook-driven Telegram bot with ASP.NET Core, preserving current behavior for message routing, ask flow, and admin moderation.
 
 ## Tech Stack
-- .NET 9 (`net9.0`)
+- .NET 10 (`net10.0`)
 - ASP.NET Core Web API controllers
 - Telegram.Bot SDK
 - Entity Framework Core + SQL Server

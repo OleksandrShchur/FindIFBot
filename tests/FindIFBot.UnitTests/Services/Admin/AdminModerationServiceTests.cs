@@ -52,6 +52,34 @@ namespace FindIFBot.UnitTests.Services.Admin
         }
 
         [Fact]
+        public async Task MarkSaleAsync_WhenClaimed_TransitionsToSaleAndNotifiesUser()
+        {
+            _historyStatus
+                .TryTransitionAsync(UserId, MessageId, RequestStatus.Sale)
+                .Returns(true);
+
+            await _sut.MarkSaleAsync(UserId, MessageId);
+
+            await _historyStatus.Received(1)
+                .TryTransitionAsync(UserId, MessageId, RequestStatus.Sale);
+            await _userNotifier.Received(1).NotifySaleAsync(UserId, MessageId);
+            await _publisher.DidNotReceive().PublishAsync(Arg.Any<FindIFBot.Persistence.StoredMessage>());
+        }
+
+        [Fact]
+        public async Task MarkSaleAsync_WhenAlreadyModerated_DoesNotNotifyUser()
+        {
+            _historyStatus
+                .TryTransitionAsync(UserId, MessageId, RequestStatus.Sale)
+                .Returns(false);
+
+            await _sut.MarkSaleAsync(UserId, MessageId);
+
+            await _userNotifier.DidNotReceive()
+                .NotifySaleAsync(Arg.Any<long>(), Arg.Any<int>());
+        }
+
+        [Fact]
         public async Task MarkNeedsAttentionAsync_WhenClaimed_TransitionsToNeedsAttentionAndNotifiesUser()
         {
             _historyStatus

@@ -5,6 +5,7 @@ using FindIFBot.Services.Admin;
 using FindIFBot.Services.Ask;
 using FindIFBot.UnitTests.TestSupport;
 using Telegram.Bot;
+using Telegram.Bot.Requests;
 using Telegram.Bot.Types;
 
 namespace FindIFBot.UnitTests.Services.Admin
@@ -55,6 +56,39 @@ namespace FindIFBot.UnitTests.Services.Admin
             await _moderation.DidNotReceive().PublishAsync(Arg.Any<long>(), Arg.Any<StoredMessage>());
             await _moderation.DidNotReceive().RejectAsync(Arg.Any<long>(), Arg.Any<int>());
             await _moderation.DidNotReceive().MarkDuplicateAsync(Arg.Any<long>(), Arg.Any<int>());
+        }
+
+        [Fact]
+        public async Task HandleCallbackAsync_SaleAction_RoutesToModerationAndCleansUpWithoutPublishing()
+        {
+            var callback = TelegramBuilder.CallbackQuery($"sale|{UserId}|{MessageId}");
+
+            await _sut.HandleCallbackAsync(callback);
+
+            await _moderation.Received(1).MarkSaleAsync(UserId, MessageId);
+            await _messages.Received(1).RemoveAsync(MessageId);
+            await _moderation.DidNotReceive().PublishAsync(Arg.Any<long>(), Arg.Any<StoredMessage>());
+            var answer = _bot.SingleRequest<AnswerCallbackQueryRequest>();
+            answer.CallbackQueryId.Should().Be(callback.Id);
+            var deleted = _bot.SingleRequest<DeleteMessageRequest>();
+            deleted.ChatId.Identifier.Should().Be(callback.Message!.Chat.Id);
+            deleted.MessageId.Should().Be(callback.Message.MessageId);
+        }
+
+        [Fact]
+        public async Task HandleCallbackAsync_UnauthorizedSaleAction_DoesNotModerateOrCleanUp()
+        {
+            _authorization.IsAuthorizedAsync(Arg.Any<CallbackQuery>(), Arg.Any<AdminCallbackData>())
+                .Returns(false);
+            var callback = TelegramBuilder.CallbackQuery($"sale|{UserId}|{MessageId}");
+
+            await _sut.HandleCallbackAsync(callback);
+
+            await _authorization.Received(1).IsAuthorizedAsync(callback,
+                new AdminCallbackData("sale", UserId, MessageId));
+            await _moderation.DidNotReceive().MarkSaleAsync(Arg.Any<long>(), Arg.Any<int>());
+            await _messages.DidNotReceive().RemoveAsync(Arg.Any<int>());
+            _bot.SentRequests<DeleteMessageRequest>().Should().BeEmpty();
         }
 
         [Fact]

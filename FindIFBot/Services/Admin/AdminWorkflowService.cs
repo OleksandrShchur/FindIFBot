@@ -91,6 +91,12 @@ namespace FindIFBot.Services.Admin
                     await _moderation.MarkAdvertisementAsync(data.UserId, data.MessageId);
                     await CleanupAsync(callback, data.MessageId);
                     return;
+                case "sale":
+                    await _logger.LogInfo(Component,
+                        $"Admin marked ask as sale | UserId: {data.UserId} | MessageId: {data.MessageId}");
+                    await _moderation.MarkSaleAsync(data.UserId, data.MessageId);
+                    await CleanupAsync(callback, data.MessageId);
+                    return;
                 case "*ask":
                     await _logger.LogInfo(Component,
                         $"Admin marked ask as needs attention | UserId: {data.UserId} | MessageId: {data.MessageId}");

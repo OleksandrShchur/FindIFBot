@@ -20,6 +20,7 @@ namespace FindIFBot.Handlers
             RequestStatus.Rejected,
             RequestStatus.Duplicate,
             RequestStatus.Advertisement,
+            RequestStatus.Sale,
             RequestStatus.NeedsAttention
         ];
 
@@ -30,6 +31,7 @@ namespace FindIFBot.Handlers
             [RequestStatus.Rejected] = "Відхилені",
             [RequestStatus.Duplicate] = "Дублікати",
             [RequestStatus.Advertisement] = "Реклама",
+            [RequestStatus.Sale] = "Продаж товарів",
             [RequestStatus.NeedsAttention] = "Уточнення"
         };
 

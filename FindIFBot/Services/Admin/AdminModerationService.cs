@@ -104,6 +104,20 @@ namespace FindIFBot.Services.Admin
             await _logger.LogInfo(Component, $"Request marked as advertisement | UserId: {userId} | MessageId: {messageId}");
         }
 
+        public async Task MarkSaleAsync(long userId, int messageId)
+        {
+            var claimed = await _historyStatus.TryTransitionAsync(userId, messageId, RequestStatus.Sale);
+            if (!claimed)
+            {
+                await _logger.LogWarning(Component,
+                    $"Sale skipped: request already moderated | UserId: {userId} | MessageId: {messageId}");
+                return;
+            }
+
+            await _userNotifier.NotifySaleAsync(userId, messageId);
+            await _logger.LogInfo(Component, $"Request marked as sale | UserId: {userId} | MessageId: {messageId}");
+        }
+
         public async Task MarkNeedsAttentionAsync(long userId, int messageId)
         {
             var claimed = await _historyStatus.TryTransitionAsync(userId, messageId, RequestStatus.NeedsAttention);
